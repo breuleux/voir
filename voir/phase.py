@@ -75,27 +75,26 @@ class PhaseRunner:
         self.phases.start.status = "done"
         self.handlers = set()
         # The plan maps each phase to a heap queue. The heap queue contains
-        # (-priority, gid, generator, requested_phase) tuples, where
-        # gid is a monotonically increasing number used to ensure that
-        # we follow add() order when priorities are equal. The requested_phase
-        # is what the generator last yielded and determines what is sent or
-        # thrown to it.
+        # (-priority, gid, generator, requested_phase) tuples, where gid is a
+        # monotonically increasing number used to ensure that we follow
+        # require() order when priorities are equal. The requested_phase is what
+        # the generator last yielded and determines what is sent or thrown to
+        # it.
         self.plan = {phase: [] for phase in self.phases}
-        self.results = {}
-        self.args = args
-        self.kwargs = kwargs
+        self.handler_args = args
+        self.handler_kwargs = kwargs
         self.error_handler = error_handler
 
-    def add(self, func):
+    def require(self, func):
         """Add a new handler.
 
         The same ``func`` will only be added once.
 
-        The callable will be called with ``self.args`` and ``self.kwargs``. If
-        it returns a generator, the generator must yield phases from
-        ``self.phases``. The generator is immediately executed for all phases
-        that are already done, and then queued for the next phase that is either
-        currently processed or to be processed in the future.
+        The callable will be called with ``self.handler_args`` and
+        ``self.handler_kwargs``. If it returns a generator, the generator must
+        yield phases from ``self.phases``. The generator is immediately executed
+        for all phases that are already done, and then queued for the next phase
+        that is either currently processed or to be processed in the future.
 
         Any errors in the handler are passed to ``self.error_handler``.
 
@@ -108,7 +107,7 @@ class PhaseRunner:
         self.handlers.add(func)
 
         try:
-            gen = func(*self.args, **self.kwargs)
+            gen = func(*self.handler_args, **self.handler_kwargs)
         except BaseException as exc:
             self.error_handler(exc)
             return
@@ -180,7 +179,7 @@ class PhaseRunner:
         phase.exception = exception
         entries = self.plan[phase]
         while entries:
-            # Note: existing coroutines can call add() to add new entries,
+            # Note: existing coroutines can call require() to add new entries,
             # so the heap can become larger from an iteration to the next.
             entry = heapq.heappop(entries)
             self._step(entry)
