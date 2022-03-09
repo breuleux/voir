@@ -22,7 +22,7 @@ class Phase:
 
     def __init__(self, name, status="pending"):
         self.name = name
-        self.status = "pending"
+        self.status = status
         self.value = None
         self.exception = None
 
@@ -63,7 +63,7 @@ class PhaseRunner:
 
     Arguments:
         phase_names: The names of the phases. The Phase objects are created
-            automatically, and the "start" phase is added at the beginning.
+            automatically.
         args: Positional arguments to give to each handler.
         kwargs: Keyword arguments to give to each handler.
         error_handler: Called whenever a handler raises an exception.
@@ -71,8 +71,8 @@ class PhaseRunner:
 
     def __init__(self, phase_names, args=(), kwargs={}, error_handler=None):
         phases = {phase_name: Phase(phase_name) for phase_name in phase_names}
-        self.phases = PhaseSequence(start=Phase("start"), **phases)
-        self.phases.start.status = "done"
+        self.phases = PhaseSequence(_boot=Phase("_boot", status="done"), **phases)
+        self.phases.IMMEDIATE = self.phases._boot(priority=0)
         self.handlers = set()
         # The plan maps each phase to a heap queue. The heap queue contains
         # (-priority, gid, generator, requested_phase) tuples, where gid is a
@@ -102,7 +102,7 @@ class PhaseRunner:
             func: A callable.
         """
         if func in self.handlers:
-            return
+            return func
 
         self.handlers.add(func)
 
@@ -113,9 +113,10 @@ class PhaseRunner:
             return
 
         if not inspect.isgenerator(gen):
-            return
+            return func
 
-        self._step((0, next(_gid), gen, self.phases.start))
+        self._step((0, next(_gid), gen, self.phases._boot))
+        return func
 
     def _step(self, entry):
         """Step for one generator.

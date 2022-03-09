@@ -40,7 +40,12 @@ class LightOverseer(PhaseRunner):
         self.results.append(5)
 
 
-def test_single():
+@pytest.fixture
+def ov():
+    return LightOverseer()
+
+
+def test_single(ov):
     def handler_appender(ov, seq):
         seq.append("zero")
         yield ov.phases.one
@@ -52,14 +57,13 @@ def test_single():
         yield ov.phases.four
         seq.append("four")
 
-    ov = LightOverseer()
     ov.require(handler_appender)
     ov.run(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["zero", 1, "one", 2, "two", 3, "three", 4, "four", 5]
 
 
-def test_dual():
+def test_dual(ov):
     def handler_A(ov, seq):
         seq.append("A0")
         yield ov.phases.one
@@ -82,7 +86,6 @@ def test_dual():
         yield ov.phases.four
         seq.append("B4")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.require(handler_B)
     ov.run(1, 2, 3, 4)
@@ -106,7 +109,7 @@ def test_dual():
     ]
 
 
-def test_order():
+def test_order(ov):
     def handler_A(ov, seq):
         seq.append("A0")
         yield ov.phases.one
@@ -129,7 +132,6 @@ def test_order():
         yield ov.phases.four(priority=1)
         seq.append("B4")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.require(handler_B)
     ov.run(1, 2, 3, 4)
@@ -153,26 +155,24 @@ def test_order():
     ]
 
 
-def test_partial_phases():
+def test_partial_phases(ov):
     def handler_A(ov, seq):
         seq.append("A0")
         yield ov.phases.two
         seq.append("A2")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.run(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["A0", 1, 2, "A2", 3, 4, 5]
 
 
-def test_add_multiple_copies():
+def test_add_multiple_copies(ov):
     def handler_A(ov, seq):
         seq.append("A0")
         yield ov.phases.two
         seq.append("A2")
 
-    ov = LightOverseer()
     # Even though we add it 3 times, we should only execute handler_A once
     ov.require(handler_A)
     ov.require(handler_A)
@@ -182,7 +182,7 @@ def test_add_multiple_copies():
     assert ov.results == ["A0", 1, 2, "A2", 3, 4, 5]
 
 
-def test_reenter():
+def test_reenter(ov):
     def handler_A(ov, seq):
         seq.append("A0")
         yield ov.phases.one
@@ -190,14 +190,13 @@ def test_reenter():
         yield ov.phases.one
         seq.append("A1.2")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.run(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["A0", 1, "A1.1", "A1.2", 2, 3, 4, 5]
 
 
-def test_sandwiched_order():
+def test_sandwiched_order(ov):
     def handler_A(ov, seq):
         yield ov.phases.two(priority=10)
         seq.append("A2.1")
@@ -210,7 +209,6 @@ def test_sandwiched_order():
         yield ov.phases.two
         seq.append("B2.1")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.require(handler_B)
     ov.run(1, 2, 3, 4)
@@ -218,7 +216,7 @@ def test_sandwiched_order():
     assert ov.results == [1, 2, "A2.1", "A2.2", "B2.1", "A2.3", 3, 4, 5]
 
 
-def test_add_by_handler():
+def test_add_by_handler(ov):
     def handler_A(ov, seq):
         seq.append("A0")
         yield ov.phases.one
@@ -243,7 +241,6 @@ def test_add_by_handler():
         yield ov.phases.four(priority=1)
         seq.append("B4")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.run(1, 2, 3, 4)
     assert not ov.errors
@@ -267,7 +264,7 @@ def test_add_by_handler():
     ]
 
 
-def test_values():
+def test_values(ov):
     def handler_checker(ov, seq):
         one = yield ov.phases.one
         assert one == 1
@@ -280,16 +277,13 @@ def test_values():
         four = yield ov.phases.four
         assert four == 4
 
-    ov = LightOverseer()
     ov.require(handler_checker)
     ov.run(1, 2, 3, 4)
     assert not ov.errors
 
 
-def test_done():
+def test_done(ov):
     def handler_checker(ov, seq):
-        assert ov.phases.start.done
-
         yield ov.phases.one
         assert not ov.phases.one.done
 
@@ -305,16 +299,13 @@ def test_done():
         assert ov.phases.three.done
         assert not ov.phases.four.done
 
-    ov = LightOverseer()
     ov.require(handler_checker)
     ov.run(1, 2, 3, 4)
     assert not ov.errors
 
 
-def test_running():
+def test_running(ov):
     def handler_checker(ov, seq):
-        assert not ov.phases.start.running
-
         assert not ov.phases.one.running
         yield ov.phases.one
         assert ov.phases.one.running
@@ -334,13 +325,12 @@ def test_running():
         assert ov.phases.four.running
         assert not ov.phases.three.running
 
-    ov = LightOverseer()
     ov.require(handler_checker)
     ov.run(1, 2, 3, 4)
     assert not ov.errors
 
 
-def test_runner_error():
+def test_runner_error(ov):
     def handler_checker_1(ov, seq):
         try:
             yield ov.phases.two
@@ -361,7 +351,6 @@ def test_runner_error():
         except TypeError:
             seq.append("error3")
 
-    ov = LightOverseer()
     ov.require(handler_checker_1)
     ov.require(handler_checker_2)
     ov.require(handler_checker_3)
@@ -372,7 +361,7 @@ def test_runner_error():
     assert ov.errors == [RuntimeError]
 
 
-def test_handler_error():
+def test_handler_error(ov):
     def handler_A(ov, seq):
         yield ov.phases.two
         seq.append("A2")
@@ -389,7 +378,6 @@ def test_handler_error():
         yield ov.phases.three
         seq.append("B3")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.require(handler_E)
     ov.require(handler_B)
@@ -399,11 +387,10 @@ def test_handler_error():
     assert ov.errors == [RuntimeError]
 
 
-def test_immediate_handler_error():
+def test_immediate_handler_error(ov):
     def handler_E(ov, seq):
         raise RuntimeError("boom")
 
-    ov = LightOverseer()
     ov.require(handler_E)
     ov.run(1, 2, 3, 4)
 
@@ -411,11 +398,10 @@ def test_immediate_handler_error():
     assert ov.errors == [RuntimeError]
 
 
-def test_not_a_generator():
+def test_handler_not_a_generator(ov):
     def handler_A(ov, seq):
         seq.append("A")
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.run(1, 2, 3, 4)
 
@@ -423,12 +409,11 @@ def test_not_a_generator():
     assert ov.results == ["A", 1, 2, 3, 4, 5]
 
 
-def test_bad_phase():
+def test_bad_phase(ov):
     def handler_A(ov, seq):
         yield ov.phases.one
         yield
 
-    ov = LightOverseer()
     ov.require(handler_A)
     ov.run(1, 2, 3, 4)
     assert ov.errors == [Exception]
@@ -437,7 +422,7 @@ def test_bad_phase():
         raise ov.error_values[0]
 
 
-def test_method():
+def test_method(ov):
     class Handler:
         def __init__(self, letter):
             self.letter = letter
@@ -453,7 +438,6 @@ def test_method():
             yield ov.phases.four
             seq.append(f"{self.letter}4")
 
-    ov = LightOverseer()
     ov.require(Handler("A"))
     ov.require(Handler("B"))
     ov.run(1, 2, 3, 4)
@@ -475,3 +459,24 @@ def test_method():
         "B4",
         5,
     ]
+
+
+def test_immediate(ov):
+    def handler_A(ov, seq):
+        yield ov.phases.IMMEDIATE
+        seq.append("A")
+
+    ov.require(handler_A)
+    ov.run(1, 2, 3, 4)
+    assert not ov.errors
+    assert ov.results == ["A", 1, 2, 3, 4, 5]
+
+
+def test_immediate_cannot_have_priority(ov):
+    def handler_A(ov, seq):
+        yield ov.phases.IMMEDIATE(priority=1000)
+        seq.append("A")
+
+    ov.require(handler_A)
+    ov.run(1, 2, 3, 4)
+    assert ov.errors == [TypeError]
