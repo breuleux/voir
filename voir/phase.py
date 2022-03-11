@@ -66,10 +66,9 @@ class PhaseRunner:
             automatically.
         args: Positional arguments to give to each handler.
         kwargs: Keyword arguments to give to each handler.
-        error_handler: Called whenever a handler raises an exception.
     """
 
-    def __init__(self, phase_names, args=(), kwargs={}, error_handler=None):
+    def __init__(self, phase_names, args=(), kwargs={}):
         phases = {phase_name: Phase(phase_name) for phase_name in phase_names}
         self.phases = PhaseSequence(_boot=Phase("_boot", status="done"), **phases)
         self.phases.IMMEDIATE = self.phases._boot(priority=0)
@@ -83,7 +82,6 @@ class PhaseRunner:
         self.plan = {phase: [] for phase in self.phases}
         self.handler_args = args
         self.handler_kwargs = kwargs
-        self.error_handler = error_handler
 
     def require(self, func):
         """Add a new handler.
@@ -96,7 +94,7 @@ class PhaseRunner:
         for all phases that are already done, and then queued for the next phase
         that is either currently processed or to be processed in the future.
 
-        Any errors in the handler are passed to ``self.error_handler``.
+        Any errors in the handler are passed to ``self.on_error``.
 
         Arguments:
             func: A callable.
@@ -109,7 +107,7 @@ class PhaseRunner:
         try:
             gen = func(*self.handler_args, **self.handler_kwargs)
         except BaseException as exc:
-            self.error_handler(exc)
+            self.on_error(exc)
             return
 
         if not inspect.isgenerator(gen):
@@ -162,7 +160,7 @@ class PhaseRunner:
         except StopIteration as exc:
             return None, None
         except BaseException as exc:
-            self.error_handler(exc)
+            self.on_error(exc)
             return None, None
         return next_phase, next_priority
 
