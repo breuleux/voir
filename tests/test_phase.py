@@ -1,6 +1,9 @@
-import pytest
+import threading
 
-from voir.phase import PhaseRunner
+import pytest
+from giving import give
+
+from voir.phase import GivenPhaseRunner, PhaseRunner, StopProgram
 
 
 class LightOverseer(PhaseRunner):
@@ -31,7 +34,7 @@ class LightOverseer(PhaseRunner):
         if exception:
             raise exception
 
-    def run(self, *values, seq=None):
+    def run(self, *values):
         self._run_phase(self.phases.one, values[0])
         self._run_phase(self.phases.two, values[1])
         self._run_phase(self.phases.three, values[2])
@@ -57,7 +60,7 @@ def test_single(ov):
         yield ov.phases.four
         seq.append("four")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["zero", 1, "one", 2, "two", 3, "three", 4, "four", 5]
 
@@ -87,7 +90,7 @@ def test_dual(ov):
         yield ov.phases.four
         seq.append("B4")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == [
         "A0",
@@ -133,7 +136,7 @@ def test_order(ov):
         yield ov.phases.four(priority=1)
         seq.append("B4")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == [
         "A0",
@@ -161,7 +164,7 @@ def test_partial_phases(ov):
         yield ov.phases.two
         seq.append("A2")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["A0", 1, 2, "A2", 3, 4, 5]
 
@@ -176,7 +179,7 @@ def test_add_multiple_copies(ov):
     ov.require(handler_A)
     ov.require(handler_A)
     ov.require(handler_A)
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["A0", 1, 2, "A2", 3, 4, 5]
 
@@ -190,7 +193,7 @@ def test_reenter(ov):
         yield ov.phases.one
         seq.append("A1.2")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["A0", 1, "A1.1", "A1.2", 2, 3, 4, 5]
 
@@ -210,7 +213,7 @@ def test_sandwiched_order(ov):
         yield ov.phases.two
         seq.append("B2.1")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == [1, 2, "A2.1", "A2.2", "B2.1", "A2.3", 3, 4, 5]
 
@@ -241,7 +244,7 @@ def test_add_by_handler(ov):
         yield ov.phases.four(priority=1)
         seq.append("B4")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == [
         "A0",
@@ -277,7 +280,7 @@ def test_values(ov):
         four = yield ov.phases.four
         assert four == 4
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
 
 
@@ -299,7 +302,7 @@ def test_done(ov):
         assert ov.phases.three.done
         assert not ov.phases.four.done
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
 
 
@@ -325,7 +328,7 @@ def test_running(ov):
         assert ov.phases.four.running
         assert not ov.phases.three.running
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
 
 
@@ -354,7 +357,7 @@ def test_runner_error(ov):
             seq.append("error3")
 
     with pytest.raises(TypeError):
-        ov.run(1, TypeError("uh oh"), 3, 4)
+        ov(1, TypeError("uh oh"), 3, 4)
 
     assert ov.results == [1, TypeError, "error1", "error2", "error3"]
     assert ov.errors == [RuntimeError]
@@ -380,7 +383,7 @@ def test_handler_error(ov):
         yield ov.phases.three
         seq.append("B3")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
 
     assert ov.results == [1, 2, "A2", "B2", 3, "A3", "B3", 4, 5]
     assert ov.errors == [RuntimeError]
@@ -391,7 +394,7 @@ def test_immediate_handler_error(ov):
     def handler_E(ov, seq):
         raise RuntimeError("boom")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
 
     assert ov.results == [1, 2, 3, 4, 5]
     assert ov.errors == [RuntimeError]
@@ -402,7 +405,7 @@ def test_handler_not_a_generator(ov):
     def handler_A(ov, seq):
         seq.append("A")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
 
     assert not ov.errors
     assert ov.results == ["A", 1, 2, 3, 4, 5]
@@ -414,7 +417,7 @@ def test_bad_phase(ov):
         yield ov.phases.one
         yield
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert ov.errors == [Exception]
 
     with pytest.raises(Exception, match="must yield a valid phase"):
@@ -439,7 +442,7 @@ def test_method(ov):
 
     ov.require(Handler("A"))
     ov.require(Handler("B"))
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == [
         "A0",
@@ -466,7 +469,7 @@ def test_immediate(ov):
         yield ov.phases.IMMEDIATE
         seq.append("A")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == ["A", 1, 2, 3, 4, 5]
 
@@ -477,5 +480,158 @@ def test_immediate_cannot_have_priority(ov):
         yield ov.phases.IMMEDIATE(priority=1000)
         seq.append("A")
 
-    ov.run(1, 2, 3, 4)
+    ov(1, 2, 3, 4)
     assert ov.errors == [TypeError]
+
+
+def test_stop(ov):
+    @ov.require
+    def handler_A(ov, seq):
+        yield ov.phases.two
+        ov.stop()
+
+    ov(1, 2, 3, 4)
+    assert not ov.errors
+    assert ov.results == [1, 2]
+    assert ov.stopped
+
+
+def test_stop_immediate(ov):
+    def handler_A(ov, seq):
+        ov.stop()
+
+    with pytest.raises(StopProgram):
+        ov.require(handler_A)
+    ov(1, 2, 3, 4)
+    assert not ov.errors
+    assert ov.results == []
+    assert ov.stopped
+
+
+def test_stop_multiple_handlers(ov):
+    @ov.require
+    def handler_A(ov, seq):
+        yield ov.phases.two
+        ov.stop()
+
+    @ov.require
+    def handler_B(ov, seq):
+        try:
+            yield ov.phases.four
+        except StopProgram:
+            seq.append("B")
+
+    @ov.require
+    def handler_C(ov, seq):
+        try:
+            yield ov.phases.three
+        except StopProgram:
+            seq.append("C")
+            raise RuntimeError("xxx")
+
+    ov(1, 2, 3, 4)
+    assert ov.errors == [RuntimeError]
+    assert ov.results == [1, 2, "C", "B"]
+    assert ov.stopped
+
+
+class LightGivenOverseer(GivenPhaseRunner):
+    def __init__(self):
+        self.errors = []
+        self.error_values = []
+        super().__init__(
+            ["one", "two", "three", "four"],
+            args=[self],
+            kwargs={},
+        )
+
+    def on_error(self, err):
+        if isinstance(err, AssertionError):
+            raise
+        self.error_values.append(err)
+        self.errors.append(type(err))
+
+    def _run_phase(self, phase, value):
+        if isinstance(value, Exception):
+            value, exception = None, value
+            self.give(error_type=type(exception))
+        else:
+            exception = None
+            self.give(value=value)
+        self.run_phase(phase, value, exception)
+        if exception:
+            raise exception
+
+    def run(self, *values):
+        self._run_phase(self.phases.one, values[0])
+        self._run_phase(self.phases.two, values[1])
+        self._run_phase(self.phases.three, values[2])
+        self._run_phase(self.phases.four, values[3])
+        self.give(value=5)
+
+
+@pytest.fixture
+def gov():
+    return LightGivenOverseer()
+
+
+def test_gov_give(gov):
+    results = []
+
+    @gov.require
+    def handler_accumulator(ov):
+        yield ov.phases.one
+        ov.given["?value"].accum(results)
+
+    @gov.require
+    def handler_v(ov):
+        yield ov.phases.two
+        value = 13
+        give(value)
+
+    gov(1, 2, 3, 4)
+    assert not gov.errors
+    assert results == [2, 13, 3, 4, 5]
+
+
+def test_gov_self_give(gov):
+    results = []
+
+    @gov.require
+    def handler_accumulator(ov):
+        yield ov.phases.one
+        ov.given["?value"].accum(results)
+
+    @gov.require
+    def handler_v(ov):
+        yield ov.phases.two
+        value = 13
+        ov.give(value=value)
+
+    gov(1, 2, 3, 4)
+    assert not gov.errors
+    assert results == [2, 13, 3, 4, 5]
+
+
+def test_gov_thread(gov):
+    def q(ov):
+        ov.give(value=4321)
+
+    results = []
+
+    @gov.require
+    def handler_accumulator(ov):
+        yield ov.phases.one
+        ov.given["?value"].accum(results)
+
+    @gov.require
+    def handler_v(ov):
+        thr = threading.Thread(target=q, args=(ov,))
+        yield ov.phases.one
+        thr.start()
+        yield ov.phases.four
+        thr.join()
+
+    gov(1, 2, 3, 4)
+    assert not gov.errors
+    assert 4321 in results

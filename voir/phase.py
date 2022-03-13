@@ -2,9 +2,22 @@
 
 import heapq
 import inspect
+import threading
+import time
 from itertools import count
+from queue import Empty, Queue
+
+from giving import give, given
 
 _gid = count()
+
+
+class StopProgram(BaseException):
+    """Raise from a handler/instrument to stop the program."""
+
+    # Inherit from BaseException so that it isn't caught by "except Exception"
+    # in user code. In that sense it is supposed to work a bit like
+    # KeyboardInterrupt.
 
 
 class Phase:
@@ -82,6 +95,7 @@ class PhaseRunner:
         self.plan = {phase: [] for phase in self.phases}
         self.handler_args = args
         self.handler_kwargs = kwargs
+        self.stopped = False
 
     def require(self, func):
         """Add a new handler.
@@ -106,6 +120,9 @@ class PhaseRunner:
 
         try:
             gen = func(*self.handler_args, **self.handler_kwargs)
+        except StopProgram as stp:
+            self.on_stop(*stp.args)
+            return
         except BaseException as exc:
             self.on_error(exc)
             return
@@ -115,6 +132,21 @@ class PhaseRunner:
 
         self._step((0, next(_gid), gen, self.phases._boot))
         return func
+
+    def stop(self, value=None):
+        raise StopProgram(value)
+
+    def on_stop(self, value):
+        self.stopped = True
+        for entries in self.plan.values():
+            for (_, __, gen, ___) in entries:
+                try:
+                    gen.throw(StopProgram(value))
+                except (StopProgram, StopIteration):
+                    pass
+                except BaseException as exc:
+                    self.on_error(exc)
+        raise StopProgram(value)
 
     def _step(self, entry):
         """Step for one generator.
@@ -159,6 +191,9 @@ class PhaseRunner:
                 raise Exception("Generator must yield a valid phase")
         except StopIteration as exc:
             return None, None
+        except StopProgram as stp:
+            self.on_stop(*stp.args)
+            return None, None
         except BaseException as exc:
             self.on_error(exc)
             return None, None
@@ -183,3 +218,61 @@ class PhaseRunner:
             entry = heapq.heappop(entries)
             self._step(entry)
         phase.status = "done"
+
+    def __call__(self, *args, **kwargs):
+        if self.stopped:
+            return
+        try:
+            self.run(*args, **kwargs)
+        except StopProgram:
+            pass
+
+
+class GivenPhaseRunner(PhaseRunner):
+    """Phase runner that provides an interface to giving.give."""
+
+    def __init__(self, phase_names, args=(), kwargs={}):
+        super().__init__(
+            phase_names=phase_names,
+            args=args,
+            kwargs=kwargs,
+        )
+        self._queue = Queue()
+        self._thread = threading.current_thread()
+        self._queue_called = False
+
+    def give(self, **data):
+        if threading.current_thread() is self._thread:
+            give(**data)
+        else:
+            self.queue(**data)
+
+    def _dump_queue(self):
+        if self._queue_called:
+            while True:
+                try:
+                    data = self._queue.get_nowait()
+                    give(**data)
+                except Empty:
+                    break
+
+    def queue(self, **data):
+        """Give data into a queue, typically from other threads."""
+        if not self._queue_called:
+
+            @self.given.where("!#queued").subscribe
+            def _(_):
+                # Insert the queued data into the given() stream
+                # whenever other data comes in
+                self._dump_queue()
+
+        self._queue_called = True
+
+        data["#queued"] = time.time()
+        self._queue.put(data)
+
+    def __call__(self, *args, **kwargs):
+        with given() as gv:
+            self.given = gv
+            super().__call__(*args, **kwargs)
+            self._dump_queue()
