@@ -493,19 +493,18 @@ def test_stop(ov):
     ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == [1, 2]
-    assert ov.stopped
+    assert ov.status == "stopped"
 
 
 def test_stop_immediate(ov):
     def handler_A(ov, seq):
         ov.stop()
 
-    with pytest.raises(StopProgram):
-        ov.require(handler_A)
+    ov.require(handler_A)
     ov(1, 2, 3, 4)
     assert not ov.errors
     assert ov.results == []
-    assert ov.stopped
+    assert ov.status == "stopped"
 
 
 def test_stop_multiple_handlers(ov):
@@ -532,7 +531,25 @@ def test_stop_multiple_handlers(ov):
     ov(1, 2, 3, 4)
     assert ov.errors == [RuntimeError]
     assert ov.results == [1, 2, "C", "B"]
-    assert ov.stopped
+    assert ov.status == "stopped"
+
+
+def test_reenter(ov):
+    @ov.require
+    def handler_A(ov, seq):
+        yield ov.phases.two
+        ov(1, 2, 3, 4)  # error
+        seq.append(111)
+
+    ov(1, 2, 3, 4)
+    assert ov.errors == [Exception]
+    assert ov.results == [1, 2, 3, 4, 5]
+
+
+def test_rerun(ov):
+    ov(1, 2, 3, 4)
+    with pytest.raises(Exception, match="Can only enter runner when"):
+        ov(1, 2, 3, 4)
 
 
 class LightGivenOverseer(GivenPhaseRunner):

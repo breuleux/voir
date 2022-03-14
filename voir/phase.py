@@ -95,7 +95,8 @@ class PhaseRunner:
         self.plan = {phase: [] for phase in self.phases}
         self.handler_args = args
         self.handler_kwargs = kwargs
-        self.stopped = False
+        self.status = "init"
+        self._to_require = []
 
     def require(self, func):
         """Add a new handler.
@@ -113,6 +114,10 @@ class PhaseRunner:
         Arguments:
             func: A callable.
         """
+        if self.status == "init":
+            self._to_require.append(func)
+            return
+
         if func in self.handlers:
             return func
 
@@ -137,7 +142,7 @@ class PhaseRunner:
         raise StopProgram(value)
 
     def on_stop(self, value):
-        self.stopped = True
+        self.status = "stopped"
         for entries in self.plan.values():
             for (_, __, gen, ___) in entries:
                 try:
@@ -220,12 +225,20 @@ class PhaseRunner:
         phase.status = "done"
 
     def __call__(self, *args, **kwargs):
-        if self.stopped:
-            return
+        if self.status != "init":
+            raise Exception("Can only enter runner when status == 'init'")
+        self.status = "running"
         try:
+            for req in self._to_require:
+                self.require(req)
             self.run(*args, **kwargs)
         except StopProgram:
             pass
+        except BaseException:
+            self.status = "error"
+            raise
+        else:
+            self.status = "done"
 
 
 class GivenPhaseRunner(PhaseRunner):
