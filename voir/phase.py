@@ -196,7 +196,7 @@ class PhaseRunner:
                 next_priority = 0
             if next_phase not in self.phases:
                 raise Exception("Generator must yield a valid phase")
-        except StopIteration as exc:
+        except StopIteration:
             return None, None
         except StopProgram as stp:
             self.on_stop(*stp.args)

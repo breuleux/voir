@@ -581,7 +581,7 @@ def test_stop_multiple_handlers(ov):
     assert ov.status == "stopped"
 
 
-def test_reenter(ov):
+def test_reenter_2(ov):
     @ov.require
     def handler_A(ov, seq):
         yield ov.phases.two

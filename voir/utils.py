@@ -1,17 +1,4 @@
 import ast
-import importlib
-import json
-import os
-import runpy
-import sys
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from functools import partial
-
-from giving import give
-
-from ptera import probing
-
-REAL_STDOUT = sys.stdout
 
 
 class Named:
@@ -33,67 +20,6 @@ class Named:
 
 
 MISSING = Named("MISSING")
-
-
-def resolve(mod, default_field=None, may_have_arg=True):
-    if may_have_arg and "=" in mod:
-        mod, arg = mod.split("=", 1)
-        try:
-            arg = json.loads(arg)
-        except json.decoder.JSONDecodeError:
-            # Keep arg as a string if it is not valid json
-            pass
-    else:
-        arg = MISSING
-
-    if ":" in mod:
-        mod, field = mod.split(":", 1)
-    elif default_field is not None:
-        field = default_field
-    else:
-        mod, field = "voir.std", mod
-    return mod, field, arg
-
-
-def fetch(mod, default_field=None, arg=MISSING):
-    if arg is MISSING:
-        mod, field, arg = resolve(mod, default_field, may_have_arg=True)
-    else:
-        mod, field, _ = resolve(mod, default_field)
-
-    if os.path.exists(mod):
-        glb = runpy.run_path(mod)
-    else:
-        mod_obj = importlib.import_module(mod)
-        glb = vars(mod_obj)
-
-    if arg is MISSING:
-        arg = {}
-    return glb[field], arg
-
-
-def simple_bridge(*selectors):
-    @contextmanager
-    def bridge(_):
-        with probing(*selectors) as prb:
-            prb.give()
-            yield
-
-    return bridge
-
-
-def extract_instruments(config):
-    probes = config.get("probes", [])
-    if probes:
-        instruments = [simple_bridge(*probes)]
-    else:
-        instruments = []
-
-    instruments += [
-        partial(fetch(name), arg=arg)
-        for name, arg in config.get("instruments", {}).items()
-    ]
-    return instruments
 
 
 def split_script(script):
@@ -149,28 +75,3 @@ def split_script(script):
 def exec_node(script, node, glb):
     code = compile(node, script, "exec")
     return lambda: exec(code, glb, glb)
-
-
-class FileGiver:
-    def __init__(self, name):
-        self.name = name
-
-    def write(self, x):
-        give(**{self.name: x})
-
-    def flush(self):
-        pass
-
-
-@contextmanager
-def give_std():
-    with (redirect_stdout(FileGiver("#stdout")), redirect_stderr(FileGiver("#stderr"))):
-        yield
-
-
-def with_priority(priority):
-    def deco(fn):
-        fn.priority = priority
-        return fn
-
-    return deco

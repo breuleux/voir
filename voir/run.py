@@ -1,0 +1,61 @@
+import operator
+from functools import reduce
+from pathlib import Path
+from runpy import run_path
+
+from ovld import ovld
+
+
+def find_voirfiles(script_path):
+    script_path = Path(script_path).expanduser().absolute()
+    cur = script_path
+
+    if cur.is_file():
+        cur = cur.parent
+        vf = (cur / script_path.stem).with_suffix(".voirfile.py")
+        results = [vf]
+    else:
+        results = []
+
+    while cur != cur.parent:
+        results.append(cur / "voirfile.py")
+        cur = cur.parent
+
+    return [str(pth) for pth in results if pth.exists()]
+
+
+@ovld
+def _to_instruments(self, value: type):  # noqa: F811
+    return [value()]
+
+
+@ovld
+def _to_instruments(self, value: list):  # noqa: F811
+    return reduce(operator.add, map(self, value))
+
+
+@ovld
+def _to_instruments(self, value: dict):  # noqa: F811
+    return reduce(operator.add, map(self, value.values()))
+
+
+@ovld
+def _to_instruments(self, value):  # noqa: F811
+    return [value]
+
+
+def _collect_instruments(voirfile):
+    glb = run_path(voirfile, init_globals={}, run_name="__voir__")
+    pfx = "instrument_"
+    if "__instruments__" in glb:
+        return _to_instruments(glb["__instruments__"])
+    else:
+        results = []
+        for name, value in glb.items():
+            if name.startswith(pfx):
+                results.extend(_to_instruments(value))
+        return results
+
+
+def collect_instruments(voirfiles):
+    return reduce(operator.add, [_collect_instruments(vf) for vf in voirfiles])

@@ -1,45 +1,11 @@
-from coleo import auto_cli, default, Option
+import sys
 
-from ptera import no_overlay
-
-from .utils import fetch, resolve
-from .overseer import run_script
+from .overseer import Overseer
+from .run import collect_instruments, find_voirfiles
 
 
-def main():
-    auto_cli(run)
-
-
-def run():
-    # Instrumenting functions
-    # [alias: -i]
-    # [action: append]
-    instrument: Option = default([])
-
-    # Probe(s) to bridge data collection
-    # [alias: -p]
-    # [action: append]
-    probe: Option = default([])
-
-    # Path to the script
-    # [positional]
-    script: Option
-
-    # Arguments to the script
-    # [positional: --]
-    args: Option
-
-    script, field, _ = resolve(script, "__main__")
-
-    instruments = dict(fetch(inst) for inst in instrument)
-
-    if probe:
-        instruments.update({p: {} for p in probe})
-
-    with no_overlay():
-        run_script(
-            script=script,
-            field=field,
-            argv=args,
-            instruments=instruments,
-        )
+def main(argv=None):
+    vfs = find_voirfiles(".")
+    instruments = collect_instruments(vfs)
+    ov = Overseer(instruments=instruments)
+    ov(sys.argv[1:] if argv is None else argv)
