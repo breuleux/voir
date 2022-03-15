@@ -226,7 +226,8 @@ def test_add_by_handler(ov):
         seq.append("A1")
         yield ov.phases.two(priority=1)
         seq.append("A2.1")
-        ov.require(handler_B)
+        hb = ov.require(handler_B)
+        assert hb is handler_B
         seq.append("A2.2")
         yield ov.phases.three(priority=-1)
         seq.append("A3")
@@ -459,6 +460,52 @@ def test_method(ov):
         4,
         "A4",
         "B4",
+        5,
+    ]
+
+
+def test_state(ov):
+    class Handler:
+        def __init__(self, letter):
+            self.__state__ = {"letter": letter}
+
+        @property
+        def letter(self):
+            return self.__state__["letter"]
+
+        def __call__(self, ov, seq):
+            seq.append(f"{self.letter}0")
+            yield ov.phases.one
+            seq.append(f"{self.letter}1")
+            yield ov.phases.two
+            seq.append(f"{self.letter}2")
+            yield ov.phases.three
+            seq.append(f"{self.letter}3")
+            yield ov.phases.four
+            seq.append(f"{self.letter}4")
+
+    @ov.require
+    def handler_change(ov, seq):
+        yield ov.phases.three
+        h = ov.require(ha)
+        assert h == {"letter": "A"}
+        h["letter"] = "Z"
+
+    ha = Handler("A")
+    ov.require(ha)
+
+    ov(1, 2, 3, 4)
+    assert not ov.errors
+    assert ov.results == [
+        "A0",
+        1,
+        "A1",
+        2,
+        "A2",
+        3,
+        "Z3",
+        4,
+        "Z4",
         5,
     ]
 

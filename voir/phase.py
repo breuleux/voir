@@ -114,12 +114,14 @@ class PhaseRunner:
         Arguments:
             func: A callable.
         """
+        state = getattr(func, "__state__", func)
+
         if self.status == "init":
             self._to_require.append(func)
-            return
+            return state
 
         if func in self.handlers:
-            return func
+            return state
 
         self.handlers.add(func)
 
@@ -133,10 +135,10 @@ class PhaseRunner:
             return
 
         if not inspect.isgenerator(gen):
-            return func
+            return state
 
         self._step((0, next(_gid), gen, self.phases._boot))
-        return func
+        return state
 
     def stop(self, value=None):
         raise StopProgram(value)
