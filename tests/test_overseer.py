@@ -4,7 +4,7 @@ import pytest
 
 from voir.forward import Forwarder, JSONSerializer
 from voir.overseer import Overseer
-from voir.tools import gated
+from voir.tools import gated, parametrized
 
 _progdir = Path(__file__).parent / "programs"
 
@@ -95,6 +95,28 @@ def test_gated_with_doc(ov):
         {"#stdout": "hello world"},
         {"#stdout": "\n"},
         {"#stdout": "WOW!"},
+        {"#stdout": "\n"},
+    ]
+
+
+@parametrized("--funk", type=int, help="How much funk?")
+def funk(ov):
+    yield ov.phases.run_script
+    for i in range(ov.options.funk):
+        print("F U N K!")
+
+
+def test_parametrized(ov):
+    ov.require(funk)
+    ov(["--funk", "3", _program("hello")])
+    assert ov.results == [
+        {"#stdout": "hello world"},
+        {"#stdout": "\n"},
+        {"#stdout": "F U N K!"},
+        {"#stdout": "\n"},
+        {"#stdout": "F U N K!"},
+        {"#stdout": "\n"},
+        {"#stdout": "F U N K!"},
         {"#stdout": "\n"},
     ]
 
