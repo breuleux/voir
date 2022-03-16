@@ -121,8 +121,8 @@ class MultiReader:
                         break
                     try:
                         line = line.decode("utf8")
+                        data = self.serializer.loads(line)
                     except UnicodeDecodeError:
-                        line = line.decide("latin1")
-                    data = self.serializer.loads(line)
+                        data = {"#binout": line}
                     self.handler({**data, **info})
             yield

@@ -10,7 +10,8 @@ def find_voirfiles(script_path):
     script_path = Path(script_path).expanduser().absolute()
     cur = script_path
 
-    if cur.is_file():
+    if cur.is_file():  # pragma: no cover
+        # Currently not used
         cur = cur.parent
         vf = (cur / script_path.stem).with_suffix(".voirfile.py")
         results = [vf]
@@ -22,11 +23,6 @@ def find_voirfiles(script_path):
         cur = cur.parent
 
     return [str(pth) for pth in results if pth.exists()]
-
-
-@ovld
-def _to_instruments(self, value: type):  # noqa: F811
-    return [value()]
 
 
 @ovld

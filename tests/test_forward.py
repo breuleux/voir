@@ -24,6 +24,10 @@ def test_serialize(jser):
     assert jser.dumps({"a": 1}) == '{"a": 1}'
 
 
+def test_deserialize_nondict(jser):
+    assert jser.loads("123") == {"#data": 123}
+
+
 def test_unserializable(jser):
     assert jser.dumps(X()) == '{"#unserializable": "{\'#data\': <X repr>}"}'
 
