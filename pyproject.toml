@@ -24,6 +24,9 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 voir = "voir.cli:main"
 
+[tool.poetry.plugins."voir.instrument"]
+forward = "voir.std:instrument_forward"
+
 [tool.isort]
 multi_line_output = 3
 include_trailing_comma = true
