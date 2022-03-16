@@ -82,6 +82,23 @@ def test_hello_flags_off(ov):
     ]
 
 
+@gated("--wow", "Turn on the WOW")
+def wow2(ov):
+    yield ov.phases.run_script
+    print("WOW!")
+
+
+def test_gated_with_doc(ov):
+    ov.require(wow2)
+    ov(["--wow", _program("hello")])
+    assert ov.results == [
+        {"#stdout": "hello world"},
+        {"#stdout": "\n"},
+        {"#stdout": "WOW!"},
+        {"#stdout": "\n"},
+    ]
+
+
 def test_collatz(ov):
     ov([_program("collatz"), "-n", "13"])
     results = [x["#stdout"] for x in ov.results]

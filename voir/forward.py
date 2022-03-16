@@ -23,11 +23,9 @@ class FileGiver:
 
 @contextmanager
 def give_std(givefn=give):
-    with (
-        redirect_stdout(FileGiver("#stdout", givefn=givefn)),
-        redirect_stderr(FileGiver("#stderr", givefn=givefn)),
-    ):
-        yield
+    with redirect_stdout(FileGiver("#stdout", givefn=givefn)):
+        with redirect_stderr(FileGiver("#stderr", givefn=givefn)):
+            yield
 
 
 class JSONSerializer:

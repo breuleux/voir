@@ -129,7 +129,7 @@ class PhaseRunner:
             gen = func(*self.handler_args, **self.handler_kwargs)
         except StopProgram as stp:
             self.on_stop(*stp.args)
-            return
+            return  # pragma: no cover
         except BaseException as exc:
             self.on_error(exc)
             return
@@ -200,7 +200,7 @@ class PhaseRunner:
             return None, None
         except StopProgram as stp:
             self.on_stop(*stp.args)
-            return None, None
+            return None, None  # pragma: no cover
         except BaseException as exc:
             self.on_error(exc)
             return None, None
@@ -274,8 +274,9 @@ class GivenPhaseRunner(PhaseRunner):
     def queue(self, **data):
         """Give data into a queue, typically from other threads."""
         if not self._queue_called:
+            qd = self.given.where("!#queued")
 
-            @self.given.where("!#queued").subscribe
+            @qd.subscribe
             def _(_):
                 # Insert the queued data into the given() stream
                 # whenever other data comes in

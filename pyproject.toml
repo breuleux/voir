@@ -6,9 +6,9 @@ authors = ["Olivier Breuleux <breuleux@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.6.2"
 ptera = "^1.0.1"
-coleo = "^0.3.0"
+ovld = "^0.3.2"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
