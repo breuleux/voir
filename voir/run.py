@@ -27,12 +27,12 @@ def find_voirfiles(script_path):
 
 @ovld
 def _to_instruments(self, value: list):  # noqa: F811
-    return reduce(operator.add, map(self, value))
+    return reduce(operator.add, map(self, value), [])
 
 
 @ovld
 def _to_instruments(self, value: dict):  # noqa: F811
-    return reduce(operator.add, map(self, value.values()))
+    return reduce(operator.add, map(self, value.values()), [])
 
 
 @ovld
@@ -54,4 +54,4 @@ def _collect_instruments(voirfile):
 
 
 def collect_instruments(voirfiles):
-    return reduce(operator.add, [_collect_instruments(vf) for vf in voirfiles])
+    return reduce(operator.add, [_collect_instruments(vf) for vf in voirfiles], [])
