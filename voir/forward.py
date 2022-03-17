@@ -6,6 +6,8 @@ from contextlib import contextmanager, redirect_stderr, redirect_stdout
 
 from giving import give
 
+from .phase import StopProgram
+
 REAL_STDOUT = sys.stdout
 
 
@@ -75,6 +77,8 @@ class Forwarder:
             try:
                 yield ov.phases.load_script
                 yield ov.phases.run_script(priority=-1000)
+            except StopProgram:  # pragma: no cover
+                pass
             except BaseException as exc:
                 ov.on_error(exc)
                 ov.suppress_error = True

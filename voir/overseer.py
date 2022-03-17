@@ -5,7 +5,7 @@ from types import ModuleType
 
 from ptera import probing
 
-from .phase import GivenPhaseRunner
+from .phase import GivenPhaseRunner, StopProgram
 from .utils import exec_node, split_script
 
 
@@ -66,7 +66,7 @@ class Overseer(GivenPhaseRunner):
         except BaseException as exc:
             exception = exc
         self.run_phase(self.phases.run_script, result, exception)
-        if exception is not None:
+        if exception is not None and not isinstance(exception, StopProgram):
             self.on_error(exception)
             return False
 
