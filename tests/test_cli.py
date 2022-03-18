@@ -102,6 +102,31 @@ def test_forward():
         assert ms == []  # Not forwarding m
 
 
+def test_forward_global_flag():
+    pipe = subprocess.Popen(
+        ["voir", "--forward", "#stdout,#stderr,n", "giver.py"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=str(_progdir),
+    )
+    mr = MultiReader()
+    mr.add_process(pipe, {"#proc": "giver"})
+    with given() as gv:
+        gv.display()
+        gv["#proc"].all(lambda x: x == "giver").filter(lambda x: x).fail_if_empty()
+        gv["?#return_code"].filter(lambda x: x == 0).fail_if_empty()
+        out = gv["?#stdout"].map(str.strip).accum()
+        ns = gv["?n"].accum()
+        ms = gv["?m"].accum()
+
+        for _ in mr:
+            pass
+
+        assert out == ["<hey>", "done", "", "<bye>", ""]
+        assert ns == [0, 1, 2, 100]
+        assert ms == []  # Not forwarding m
+
+
 def test_bad_unicode():
     pipe = subprocess.Popen(
         ["voir", "evil.py"],
