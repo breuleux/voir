@@ -15,6 +15,8 @@ def collect_contrib_instruments():
 
 
 def main(argv=None):
+    sys.path.insert(0, os.path.abspath(os.curdir))
+
     vfs = os.environ.get("VOIRFILE", None)
     if vfs is None:
         vfs = find_voirfiles(".")

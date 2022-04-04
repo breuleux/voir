@@ -24,6 +24,7 @@ def gated(flag: str, instrument: meta(callable), help: str = None):  # noqa: F81
         if getattr(ov.options, dest):
             ov.require(instrument)
 
+    run.instrument = instrument
     return run
 
 
