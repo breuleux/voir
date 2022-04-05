@@ -22,6 +22,9 @@ class FileGiver:
     def flush(self):  # pragma: no cover
         pass
 
+    def close(self):
+        pass
+
 
 @contextmanager
 def give_std(givefn=give):
