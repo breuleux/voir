@@ -3,7 +3,6 @@ import traceback
 from argparse import REMAINDER, ArgumentParser
 from types import ModuleType
 
-from giving import given
 from ptera import probing, select
 
 from .phase import GivenPhaseRunner, StopProgram
