@@ -28,3 +28,5 @@ def main(argv=None):
 
     ov = Overseer(instruments=instruments)
     ov(sys.argv[1:] if argv is None else argv)
+    if ov.status == "error":
+        sys.exit(1)

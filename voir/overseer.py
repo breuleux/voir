@@ -71,6 +71,7 @@ class Overseer(GivenPhaseRunner):
                 raise exception
             self.on_error(exception)
             return False
+        return True
 
     def __call__(self, *args, **kwargs):
         try:

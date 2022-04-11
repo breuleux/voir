@@ -230,17 +230,18 @@ class PhaseRunner:
         if self.status != "init":
             raise Exception("Can only enter runner when status == 'init'")
         self.status = "running"
+        success = False
         try:
             for req in self._to_require:
                 self.require(req)
-            self.run(*args, **kwargs)
+            success = self.run(*args, **kwargs)
         except StopProgram:
             pass
         except BaseException:
             self.status = "error"
             raise
         else:
-            self.status = "done"
+            self.status = "done" if success else "error"
 
 
 class GivenPhaseRunner(PhaseRunner):
