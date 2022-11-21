@@ -4,6 +4,7 @@ import heapq
 import inspect
 import threading
 import time
+from contextlib import contextmanager
 from itertools import count
 from queue import Empty, Queue
 
@@ -18,6 +19,10 @@ class StopProgram(BaseException):
     # Inherit from BaseException so that it isn't caught by "except Exception"
     # in user code. In that sense it is supposed to work a bit like
     # KeyboardInterrupt.
+
+
+class OverseerAbort(BaseException):
+    pass
 
 
 class Phase:
@@ -129,9 +134,9 @@ class PhaseRunner:
             gen = func(*self.handler_args, **self.handler_kwargs)
         except StopProgram as stp:
             self.on_stop(*stp.args)
-            return  # pragma: no cover
+            raise
         except BaseException as exc:
-            self.on_error(exc)
+            self.on_overseer_error(exc)
             return
 
         if not inspect.isgenerator(gen):
@@ -143,6 +148,9 @@ class PhaseRunner:
     def stop(self, value=None):
         raise StopProgram(value)
 
+    def abort(self, exc):
+        raise OverseerAbort(exc)
+
     def on_stop(self, value):
         self.status = "stopped"
         for entries in self.plan.values():
@@ -152,8 +160,8 @@ class PhaseRunner:
                 except (StopProgram, StopIteration):
                     pass
                 except BaseException as exc:
-                    self.on_error(exc)
-        raise StopProgram(value)
+                    self.on_overseer_error(exc)
+                    pass
 
     def _step(self, entry):
         """Step for one generator.
@@ -198,50 +206,71 @@ class PhaseRunner:
                 raise Exception("Generator must yield a valid phase")
         except StopIteration:
             return None, None
-        except StopProgram as stp:
-            self.on_stop(*stp.args)
-            return None, None  # pragma: no cover
+        except StopProgram:
+            raise
+        except OverseerAbort as exc:
+            raise exc
         except BaseException as exc:
-            self.on_error(exc)
+            self.on_overseer_error(exc)
             return None, None
         return next_phase, next_priority
 
-    def run_phase(self, phase, value, exception):
+    @contextmanager
+    def run_phase(self, phase):
         """Run a phase.
 
         Arguments:
             phase: One of the Phases in ``self.phases``.
-            value: The value for the phase.
-            exception: The exception corresponding to this phase, or
-                None if there is no error.
         """
+        result = exception = None
+
+        def _set_value(value):
+            nonlocal result
+            result = value
+
+        try:
+            yield _set_value
+        except BaseException as exc:
+            exception = exc
+
         phase.status = "running"
-        phase.value = value
+        phase.value = result
         phase.exception = exception
         entries = self.plan[phase]
-        while entries:
-            # Note: existing coroutines can call require() to add new entries,
-            # so the heap can become larger from an iteration to the next.
-            entry = heapq.heappop(entries)
-            self._step(entry)
-        phase.status = "done"
+
+        try:
+            while entries:
+                # Note: existing coroutines can call require() to add new entries,
+                # so the heap can become larger from an iteration to the next.
+                entry = heapq.heappop(entries)
+                self._step(entry)
+            phase.status = "done"
+        except OverseerAbort as exc:
+            raise exc.args[0]
+        else:
+            if exception:
+                raise exception
 
     def __call__(self, *args, **kwargs):
         if self.status != "init":
             raise Exception("Can only enter runner when status == 'init'")
         self.status = "running"
-        success = False
+        # success = False
         try:
             for req in self._to_require:
                 self.require(req)
-            success = self.run(*args, **kwargs)
-        except StopProgram:
+            self.run(*args, **kwargs)
+        except StopProgram as stp:
+            self.on_stop(*stp.args)
             pass
+        except SystemExit:
+            raise
         except BaseException:
+            # self.on_error(exc)
             self.status = "error"
             raise
         else:
-            self.status = "done" if success else "error"
+            self.status = "done"
 
 
 class GivenPhaseRunner(PhaseRunner):

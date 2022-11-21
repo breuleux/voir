@@ -17,22 +17,20 @@ class LightOverseer(PhaseRunner):
             kwargs={},
         )
 
-    def on_error(self, err):
+    def on_overseer_error(self, err):
         if isinstance(err, AssertionError):
-            raise
+            self.stop(err)
         self.error_values.append(err)
         self.errors.append(type(err))
 
     def _run_phase(self, phase, value):
-        if isinstance(value, Exception):
-            value, exception = None, value
-            self.results.append(type(exception))
-        else:
-            exception = None
-            self.results.append(value)
-        self.run_phase(phase, value, exception)
-        if exception:
-            raise exception
+        with self.run_phase(phase) as set_value:
+            if isinstance(value, Exception):
+                self.results.append(type(value))
+                raise value
+            else:
+                self.results.append(value)
+                set_value(value)
 
     def run(self, *values):
         self._run_phase(self.phases.one, values[0])
@@ -364,7 +362,7 @@ def test_runner_error(ov):
     assert ov.errors == [RuntimeError]
 
 
-def test_handler_error(ov):
+def test_handler_purposeful_error(ov):
     @ov.require
     def handler_A(ov, seq):
         yield ov.phases.two
@@ -375,7 +373,7 @@ def test_handler_error(ov):
     @ov.require
     def handler_E(ov, seq):
         yield ov.phases.two
-        raise RuntimeError("boom")
+        ov.abort(RuntimeError("boom"))
 
     @ov.require
     def handler_B(ov, seq):
@@ -384,10 +382,11 @@ def test_handler_error(ov):
         yield ov.phases.three
         seq.append("B3")
 
-    ov(1, 2, 3, 4)
+    with pytest.raises(RuntimeError):
+        ov(1, 2, 3, 4)
 
-    assert ov.results == [1, 2, "A2", "B2", 3, "A3", "B3", 4, 5]
-    assert ov.errors == [RuntimeError]
+    assert ov.results == [1, 2, "A2"]
+    assert ov.errors == []
 
 
 def test_immediate_handler_error(ov):
@@ -616,15 +615,13 @@ class LightGivenOverseer(GivenPhaseRunner):
         self.errors.append(type(err))
 
     def _run_phase(self, phase, value):
-        if isinstance(value, Exception):
-            value, exception = None, value
-            self.give(error_type=type(exception))
-        else:
-            exception = None
-            self.give(value=value)
-        self.run_phase(phase, value, exception)
-        if exception:
-            raise exception
+        with self.run_phase(phase) as set_value:
+            if isinstance(value, Exception):
+                self.give(error_type=type(value))
+                raise value
+            else:
+                self.give(value=value)
+                set_value(value)
 
     def run(self, *values):
         self._run_phase(self.phases.one, values[0])

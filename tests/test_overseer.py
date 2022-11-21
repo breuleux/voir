@@ -137,18 +137,21 @@ def test_not_serializable(ov):
 
 
 def test_error_unknown_program(ov):
-    ov([_program("unknown")])
+    with pytest.raises(FileNotFoundError):
+        ov([_program("unknown")])
     assert ov.results[0] == {"#stderr": "An error occurred"}
-    assert "FileNotFoundError" in str(ov.results)
+    # assert "FileNotFoundError" in str(ov.results)
 
 
 def test_error_in_load(ov):
-    ov([_program("zero")])
+    with pytest.raises(ZeroDivisionError):
+        ov([_program("zero")])
     assert ov.results[0] == {"#stderr": "An error occurred"}
-    assert "ZeroDivisionError" in str(ov.results)
+    # assert "ZeroDivisionError" in str(ov.results)
 
 
 def test_error_in_run(ov):
-    ov([_program("collatz"), "-n", "blah"])
+    with pytest.raises(ValueError):
+        ov([_program("collatz"), "-n", "blah"])
     assert ov.results[0] == {"#stderr": "An error occurred"}
-    assert "ValueError" in str(ov.results)
+    # assert "ValueError" in str(ov.results)

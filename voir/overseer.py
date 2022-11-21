@@ -43,41 +43,29 @@ class Overseer(GivenPhaseRunner):
         return self.require(ProbeInstrument(select(selector, skip_frames=1)))
 
     def run(self, argv):
-        self.run_phase(self.phases.init, None, None)
-        self.options = self.argparser.parse_args(argv)
-        del self.argparser
-        self.run_phase(self.phases.parse_args, None, None)
-        script = self.options.SCRIPT
-        field = "__main__"
-        argv = self.options.ARGV
+        with self.run_phase(self.phases.init):
+            pass
 
-        try:
+        with self.run_phase(self.phases.parse_args):
+            self.options = self.argparser.parse_args(argv)
+            del self.argparser
+
+        with self.run_phase(self.phases.load_script):
+            script = self.options.SCRIPT
+            field = "__main__"
+            argv = self.options.ARGV
             func = find_script(script, field)
-        except BaseException as exc:
-            self.run_phase(self.phases.load_script, None, exc)
-            self.on_error(exc)
-            return False
 
-        self.run_phase(self.phases.load_script, None, None)
-        sys.argv = [script, *argv]
-        result, exception = None, None
-        try:
-            result = func()
-        except BaseException as exc:
-            exception = exc
-        self.run_phase(self.phases.run_script, result, exception)
-        if exception is not None and not isinstance(exception, StopProgram):
-            if isinstance(exception, SystemExit):
-                raise exception
-            self.on_error(exception)
-            return False
-        return True
+        with self.run_phase(self.phases.run_script) as set_value:
+            sys.argv = [script, *argv]
+            set_value(func())
 
     def __call__(self, *args, **kwargs):
         try:
             super().__call__(*args, **kwargs)
         finally:
-            self.run_phase(self.phases.finalize, None, None)
+            with self.run_phase(self.phases.finalize):
+                pass
 
 
 def find_script(script, field):
