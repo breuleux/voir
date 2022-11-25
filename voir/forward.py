@@ -8,18 +8,16 @@ from typing import Callable
 
 
 class GiveToFile:
-    def __init__(self, filename, fields=None, require_existing=True):
+    def __init__(self, filename, fields=None, require_writable=True):
         self.fields = fields
         self.filename = filename
         try:
             self.out = open(self.filename, "w", buffering=1)
         except OSError:
-            if require_existing:
+            if require_writable:
                 raise
             self.out = open(os.devnull, "w")
         self.out.__enter__()
-        self.serializer = json
-        self.x = 0
 
     def log(self, data):
         try:
@@ -144,5 +142,5 @@ class Multiplexer:
                             }
                         )
 
-            if not self.blocking:
+            if not self.blocking:  # pragma: no cover
                 yield None

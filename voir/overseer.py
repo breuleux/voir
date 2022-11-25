@@ -1,4 +1,5 @@
 import sys
+import traceback
 from argparse import REMAINDER, ArgumentParser
 from types import ModuleType
 
@@ -44,6 +45,14 @@ class Overseer(GivenPhaseRunner):
                 }
             }
         )
+        print("=" * 80, file=sys.stderr)
+        print(
+            "voir: An error occurred in an overseer. Execution proceeds as normal.",
+            file=sys.stderr,
+        )
+        print("=" * 80, file=sys.stderr)
+        traceback.print_exception(type(e), e, e.__traceback__)
+        print("=" * 80, file=sys.stderr)
         super().on_overseer_error(e)
 
     def probe(self, selector):
@@ -55,7 +64,7 @@ class Overseer(GivenPhaseRunner):
 
     def run(self, argv):
         if self.logfile is not None:
-            self.gtf = GiveToFile(self.logfile, require_existing=False)
+            self.gtf = GiveToFile(self.logfile, require_writable=False)
             self.log = self.gtf.log
             self.given.where("#event") >> self.log
         else:
@@ -82,7 +91,7 @@ class Overseer(GivenPhaseRunner):
     def __call__(self, *args, **kwargs):
         try:
             super().__call__(*args, **kwargs)
-        except Exception as e:
+        except BaseException as e:
             self.log(
                 {
                     "#event": {

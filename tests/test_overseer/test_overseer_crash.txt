@@ -1,0 +1,37 @@
+##########
+# stdout #
+##########
+13
+40
+20
+10
+5
+16
+8
+4
+2
+
+##########
+# stderr #
+##########
+================================================================================
+voir: An error occurred in an overseer. Execution proceeds as normal.
+================================================================================
+Traceback (most recent call last):
+  <redacted>, in _step_one
+    next_phase = gen.send(ph.value)
+  <redacted>, in _crash
+    raise ValueError("boom.")
+ValueError: boom.
+================================================================================
+
+##########
+#  data  #
+##########
+{"#event": {"type": "phase", "name": "init"}}
+{"#event": {"type": "phase", "name": "parse_args"}}
+{"#event": {"type": "phase", "name": "load_script"}}
+{"#event": {"type": "overseer_error", "data": {"type": "ValueError", "message": "boom."}}}
+{"#event": {"type": "phase", "name": "run_script"}}
+{"#event": {"type": "phase", "name": "finalize"}}
+

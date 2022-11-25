@@ -265,8 +265,6 @@ class PhaseRunner:
         except StopProgram as stp:
             self.on_stop(*stp.args)
             pass
-        except SystemExit:
-            raise
         except BaseException:
             self.status = "error"
             raise

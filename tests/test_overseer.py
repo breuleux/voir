@@ -1,4 +1,5 @@
 import os
+import re
 import select
 from pathlib import Path
 
@@ -42,7 +43,9 @@ def output_summary(capsys, capdata):
     def calc():
         oe = capsys.readouterr()
         dat = capdata()
-        return template.format(out=oe.out, err=oe.err, data=dat)
+        txt = template.format(out=oe.out, err=oe.err, data=dat)
+        txt = re.sub(string=txt, pattern='File "[^"]*", line [0-9]+', repl="<redacted>")
+        return txt
 
     return calc
 
@@ -82,10 +85,23 @@ def _probe(ov):
         ov.probe(ov.options.probe) >> ov.log
 
 
+def _crash(ov):
+    yield ov.phases.init
+    ov.argparser.add_argument("--crash", action="store_true")
+    yield ov.phases.load_script
+    if ov.options.crash:
+        raise ValueError("boom.")
+
+
 @pytest.fixture
 def ov(data_fds):
     r, w = data_fds
-    return Overseer(instruments=[_probe], logfile=w)
+    return Overseer(instruments=[_probe, _crash], logfile=w)
+
+
+@pytest.fixture
+def ov_nodata():
+    return Overseer(instruments=[_probe, _crash])
 
 
 def test_probe(ov, capsys, capdata):
@@ -106,15 +122,15 @@ def wow(ov):
     print("WOW!")
 
 
-def test_hello_flags_on(ov, outlines):
-    ov.require(wow)
-    ov(["--wow", _program("hello")])
+def test_hello_flags_on(ov_nodata, outlines):
+    ov_nodata.require(wow)
+    ov_nodata(["--wow", _program("hello")])
     assert outlines() == ["hello world", "WOW!"]
 
 
-def test_hello_flags_off(ov, outlines):
-    ov.require(wow)
-    ov([_program("hello")])
+def test_hello_flags_off(ov_nodata, outlines):
+    ov_nodata.require(wow)
+    ov_nodata([_program("hello")])
     assert outlines() == ["hello world"]
 
 
@@ -179,3 +195,8 @@ def test_error_in_load(ov, check_all):
 def test_error_in_run(ov, check_all):
     with pytest.raises(ValueError):
         ov([_program("collatz"), "-n", "blah"])
+
+
+def test_overseer_crash(ov, check_all):
+    # Should not impede the program's execution
+    ov(["--crash", _program("collatz"), "-n", "13"])
