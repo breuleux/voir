@@ -1,3 +1,3 @@
-from voir.forward import Forwarder
-
-instrument_fw = Forwarder(fields=["#stdout", "#stderr", "n"])
+def instrument_forward(ov):
+    yield ov.phases.init
+    ov.given.where("n") >> ov.log

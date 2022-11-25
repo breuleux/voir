@@ -608,12 +608,6 @@ class LightGivenOverseer(GivenPhaseRunner):
             kwargs={},
         )
 
-    def on_error(self, err):
-        if isinstance(err, AssertionError):
-            raise
-        self.error_values.append(err)
-        self.errors.append(type(err))
-
     def _run_phase(self, phase, value):
         with self.run_phase(phase) as set_value:
             if isinstance(value, Exception):

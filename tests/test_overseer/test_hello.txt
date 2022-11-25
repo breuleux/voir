@@ -1,0 +1,5 @@
+{"#event": {"type": "phase", "name": "init"}}
+{"#event": {"type": "phase", "name": "parse_args"}}
+{"#event": {"type": "phase", "name": "load_script"}}
+{"#event": {"type": "phase", "name": "run_script"}}
+{"#event": {"type": "phase", "name": "finalize"}}

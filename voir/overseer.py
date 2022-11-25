@@ -1,11 +1,12 @@
 import sys
-import traceback
 from argparse import REMAINDER, ArgumentParser
 from types import ModuleType
 
 from ptera import probing, select
 
-from .phase import GivenPhaseRunner, StopProgram
+from voir.forward import GiveToFile
+
+from .phase import GivenPhaseRunner
 from .utils import exec_node, split_script
 
 
@@ -21,8 +22,7 @@ class ProbeInstrument:
 
 
 class Overseer(GivenPhaseRunner):
-    def __init__(self, instruments):
-        self.suppress_error = False
+    def __init__(self, instruments, logfile=None):
         self.argparser = ArgumentParser()
         self.argparser.add_argument("SCRIPT")
         self.argparser.add_argument("ARGV", nargs=REMAINDER)
@@ -33,16 +33,35 @@ class Overseer(GivenPhaseRunner):
         )
         for instrument in instruments:
             self.require(instrument)
+        self.logfile = logfile
 
-    def on_error(self, exc):
-        if not self.suppress_error:
-            print("An error occurred", file=sys.stderr)
-            traceback.print_exception(type(exc), exc, exc.__traceback__)
+    def on_overseer_error(self, e):
+        self.log(
+            {
+                "#event": {
+                    "type": "overseer_error",
+                    "data": {"type": type(e).__name__, "message": str(e)},
+                }
+            }
+        )
+        super().on_overseer_error(e)
 
     def probe(self, selector):
         return self.require(ProbeInstrument(select(selector, skip_frames=1)))
 
+    def run_phase(self, phase):
+        self.log({"#event": {"type": "phase", "name": phase.name}})
+        return super().run_phase(phase)
+
     def run(self, argv):
+        if self.logfile is not None:
+            self.gtf = GiveToFile(self.logfile, require_existing=False)
+            self.log = self.gtf.log
+            self.given.where("#event") >> self.log
+        else:
+            self.gtf = None
+            self.log = lambda data: None
+
         with self.run_phase(self.phases.init):
             pass
 
@@ -63,9 +82,21 @@ class Overseer(GivenPhaseRunner):
     def __call__(self, *args, **kwargs):
         try:
             super().__call__(*args, **kwargs)
+        except Exception as e:
+            self.log(
+                {
+                    "#event": {
+                        "type": "error",
+                        "data": {"type": type(e).__name__, "message": str(e)},
+                    }
+                }
+            )
+            raise
         finally:
             with self.run_phase(self.phases.finalize):
                 pass
+            if self.gtf:
+                self.gtf.close()
 
 
 def find_script(script, field):

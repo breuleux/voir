@@ -1,0 +1,27 @@
+Readable
+=========
+#1 start
+#1 stdout: <bonjour>
+#1 stdout: /////
+#1 stdout: hello world
+#1 stdout: <bonsoir>
+#1 data.phase: {"name": "init"}
+#1 data.phase: {"name": "parse_args"}
+#1 data.phase: {"name": "load_script"}
+#1 data.phase: {"name": "run_script"}
+#1 data.phase: {"name": "finalize"}
+#1 end
+
+Raw
+=========
+{"#event": "start", "#data": {"time": "X"}}
+{"#event": "line", "#data": "<bonjour>\n", "#pipe": "stdout"}
+{"#event": "line", "#data": "/////\n", "#pipe": "stdout"}
+{"#event": "line", "#data": "hello world\n", "#pipe": "stdout"}
+{"#event": "line", "#data": "<bonsoir>\n", "#pipe": "stdout"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "init"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "parse_args"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "load_script"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "run_script"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "finalize"}}, "#pipe": "data"}
+{"#event": "end", "#data": {"time": "X", "return_code": 0}}

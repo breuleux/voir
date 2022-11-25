@@ -16,6 +16,7 @@ isort = "^5.10.1"
 flake8 = "^4.0.1"
 pytest = "^7.0.1"
 pytest-cov = "^3.0.0"
+pytest-regressions = "^2.4.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -25,7 +26,6 @@ build-backend = "poetry.core.masonry.api"
 voir = "voir.cli:main"
 
 [tool.poetry.plugins."voir.instrument"]
-forward = "voir.std:instrument_forward"
 
 [tool.isort]
 multi_line_output = 3

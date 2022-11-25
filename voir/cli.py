@@ -26,7 +26,5 @@ def main(argv=None):
     instruments = collect_instruments(vfs)
     instruments.extend(collect_contrib_instruments())
 
-    ov = Overseer(instruments=instruments)
+    ov = Overseer(instruments=instruments, logfile=int(os.environ.get("DATA_FD", 3)))
     ov(sys.argv[1:] if argv is None else argv)
-    if ov.status == "error":
-        sys.exit(1)

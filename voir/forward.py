@@ -1,133 +1,148 @@
 import json
 import os
-import sys
+import select
+import subprocess
 import time
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
-
-from giving import give
-
-from .phase import StopProgram
-
-REAL_STDOUT = sys.stdout
+from dataclasses import dataclass
+from typing import Callable
 
 
-class FileGiver:
-    def __init__(self, name, givefn=give):
-        self.name = name
-        self.givefn = givefn
-
-    def write(self, x):
-        self.givefn(**{self.name: x})
-
-    def flush(self):  # pragma: no cover
-        pass
-
-    def close(self):
-        pass
-
-
-@contextmanager
-def give_std(givefn=give):
-    with redirect_stdout(FileGiver("#stdout", givefn=givefn)):
-        with redirect_stderr(FileGiver("#stderr", givefn=givefn)):
-            yield
-
-
-class JSONSerializer:
-    def __init__(self, tags={}):
-        self.tags = tags
-
-    def gettag(self, label):
-        return self.tags.get(label, label)
-
-    def loads(self, s):
-        try:
-            data = json.loads(s)
-            if not isinstance(data, dict):
-                data = {self.gettag("#data"): data}
-            return data
-        except json.JSONDecodeError:
-            return {self.gettag("#undeserializable"): s}
-
-    def dumps(self, data):
-        if not isinstance(data, dict):
-            data = {self.gettag("#data"): data}
-        try:
-            return json.dumps(data)
-        except TypeError:
-            return json.dumps({self.gettag("#unserializable"): repr(data)})
-
-
-class Forwarder:
-    def __init__(self, write=None, serializer=None, fields=None):
-        if write is None:  # pragma: no cover
-            write = REAL_STDOUT.write
-        self.write = write
-        self.serializer = serializer or JSONSerializer()
+class GiveToFile:
+    def __init__(self, filename, fields=None, require_existing=True):
         self.fields = fields
+        self.filename = filename
+        try:
+            self.out = open(self.filename, "w", buffering=1)
+        except OSError:
+            if require_existing:
+                raise
+            self.out = open(os.devnull, "w")
+        self.out.__enter__()
+        self.serializer = json
+        self.x = 0
 
     def log(self, data):
-        txt = self.serializer.dumps(data)
-        self.write(f"{txt}\n")
-
-    def __call__(self, ov):
-        yield ov.phases.IMMEDIATE
-        if self.fields:
-            ov.given.keep(*self.fields) >> self.log
-        else:
-            ov.given >> self.log
-        with give_std(ov.give):
+        try:
+            txt = json.dumps(data)
+        except TypeError:
             try:
-                yield ov.phases.load_script
-                yield ov.phases.run_script(priority=-1000)
-            except StopProgram:  # pragma: no cover
-                pass
-            except BaseException as exc:
-                ov.on_error(exc)
-                ov.suppress_error = True
-                raise
+                txt = json.dumps({"#unserializable": str(data)})
+            except Exception:
+                txt = json.dumps({"#unrepresentable": None})
+        self.out.write(f"{txt}\n")
+
+    def close(self):
+        self.out.__exit__()
 
 
-def _give(data):
-    give(**data)
+@dataclass
+class Stream:
+    pipe: object
+    info: dict
+    deserializer: Callable = None
 
 
-_serializer = JSONSerializer(
-    tags={
-        "#undeserializable": "#stdout",
-        "#data": "#stdout",
-    }
-)
+class Multiplexer:
+    def __init__(self, timeout=0):
+        self.processes = {}
+        self.blocking = timeout is None
+        self.timeout = timeout
+        self.buffer = []
 
+    def run(self, argv, info, env=os.environ, **options):
+        r, w = os.pipe()
+        proc = subprocess.Popen(
+            argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            pass_fds=[w],
+            env={**env, "DATA_FD": str(w), "PYTHONUNBUFFERED": "1"},
+            **options,
+        )
+        readdata = open(r, "r", buffering=1)
+        os.set_blocking(proc.stdout.fileno(), False)
+        os.set_blocking(proc.stderr.fileno(), False)
+        os.set_blocking(r, False)
+        self.add_process(
+            proc=proc,
+            info=info,
+            streams=[
+                Stream(pipe=proc.stdout, info={"#pipe": "stdout"}, deserializer=None),
+                Stream(pipe=proc.stderr, info={"#pipe": "stderr"}, deserializer=None),
+                Stream(pipe=readdata, info={"#pipe": "data"}, deserializer=json.loads),
+            ],
+        )
+        self.buffer.append(
+            {
+                "#event": "start",
+                "#data": {
+                    "time": time.time(),
+                },
+                **info,
+            }
+        )
+        return proc
 
-class MultiReader:
-    def __init__(self, serializer=_serializer, handler=_give):
-        self.processes = []
-        self.serializer = serializer
-        self.handler = handler
+    def add_process(self, *, proc, info, streams):
+        self.processes[proc] = (streams, info)
 
-    def add_process(self, process, info):
-        os.set_blocking(process.stdout.fileno(), False)
-        self.processes.append((process, info))
+    def _process_line(self, line, s, pinfo):
+        try:
+            if isinstance(line, bytes):
+                line = line.decode("utf8")
+            if s.deserializer:
+                try:
+                    data = s.deserializer(line)
+                    yield {"#event": "data", "#data": data, **pinfo, **s.info}
+                except Exception as e:
+                    yield {
+                        "#event": "format_error",
+                        "#data": {
+                            "line": line,
+                            "error": type(e).__name__,
+                            "message": str(e),
+                        },
+                        **pinfo,
+                        **s.info,
+                    }
+            else:
+                yield {"#event": "line", "#data": line, **pinfo, **s.info}
+        except UnicodeDecodeError:
+            yield {"#event": "binary", "#data": line, **pinfo, **s.info}
 
     def __iter__(self):
+        yield from self.buffer
+        self.buffer.clear()
+
         while self.processes:
-            for (proc, info) in list(self.processes):
-                while True:
-                    line = proc.stdout.readline()
-                    if not line:
-                        ret = proc.poll()
-                        if ret is not None:
-                            # We do not read a line and the process is over
-                            self.processes.remove((proc, info))
-                            self.handler(
-                                {"#end": time.time(), "#return_code": ret, **info}
-                            )
-                        break
-                    try:
-                        line = line.decode("utf8")
-                        data = self.serializer.loads(line)
-                    except UnicodeDecodeError:
-                        data = {"#binout": line}
-                    self.handler({**data, **info})
-            yield
+            still_alive = set()
+            to_consult = {}
+            for proc, (streams, info) in self.processes.items():
+                to_consult.update({s.pipe: (s, proc, info) for s in streams})
+
+            ready, _, _ = select.select(to_consult.keys(), [], [], self.timeout)
+
+            for r in ready:
+                while line := r.readline():
+                    s, proc, info = to_consult[r]
+                    yield from self._process_line(line, s, info)
+                    still_alive.add(proc)
+
+            for proc, (streams, info) in list(self.processes.items()):
+                if proc not in still_alive:
+                    ret = proc.poll()
+                    if ret is not None:
+                        del self.processes[proc]
+                        yield (
+                            {
+                                "#event": "end",
+                                "#data": {
+                                    "time": time.time(),
+                                    "return_code": ret,
+                                },
+                                **info,
+                            }
+                        )
+
+            if not self.blocking:
+                yield None

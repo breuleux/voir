@@ -1,0 +1,29 @@
+Readable
+=========
+#1 start
+#1 stdout: done
+#1 data.phase: {"name": "init"}
+#1 data.phase: {"name": "parse_args"}
+#1 data.phase: {"name": "load_script"}
+#1 data.phase: {"name": "run_script"}
+#1 data: {"n": 0}
+#1 data: {"n": 1}
+#1 data: {"n": 2}
+#1 data: {"n": 100}
+#1 data.phase: {"name": "finalize"}
+#1 end
+
+Raw
+=========
+{"#event": "start", "#data": {"time": "X"}}
+{"#event": "line", "#data": "done\n", "#pipe": "stdout"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "init"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "parse_args"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "load_script"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "run_script"}}, "#pipe": "data"}
+{"#event": "data", "#data": {"n": 0}, "#pipe": "data"}
+{"#event": "data", "#data": {"n": 1}, "#pipe": "data"}
+{"#event": "data", "#data": {"n": 2}, "#pipe": "data"}
+{"#event": "data", "#data": {"n": 100}, "#pipe": "data"}
+{"#event": "data", "#data": {"#event": {"type": "phase", "name": "finalize"}}, "#pipe": "data"}
+{"#event": "end", "#data": {"time": "X", "return_code": 0}}

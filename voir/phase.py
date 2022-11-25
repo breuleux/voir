@@ -151,6 +151,9 @@ class PhaseRunner:
     def abort(self, exc):
         raise OverseerAbort(exc)
 
+    def on_overseer_error(self, e):
+        pass
+
     def on_stop(self, value):
         self.status = "stopped"
         for entries in self.plan.values():
@@ -255,7 +258,6 @@ class PhaseRunner:
         if self.status != "init":
             raise Exception("Can only enter runner when status == 'init'")
         self.status = "running"
-        # success = False
         try:
             for req in self._to_require:
                 self.require(req)
@@ -266,7 +268,6 @@ class PhaseRunner:
         except SystemExit:
             raise
         except BaseException:
-            # self.on_error(exc)
             self.status = "error"
             raise
         else:
