@@ -3,12 +3,18 @@ import traceback
 from argparse import REMAINDER, ArgumentParser
 from types import ModuleType
 
+from giving import SourceProxy
 from ptera import probing, select
 
 from voir.forward import GiveToFile
 
 from .phase import GivenPhaseRunner
 from .utils import exec_node, split_script
+
+
+class LogStream(SourceProxy):
+    def __call__(self, data):
+        self._push(data)
 
 
 class ProbeInstrument:
@@ -63,13 +69,14 @@ class Overseer(GivenPhaseRunner):
         return super().run_phase(phase)
 
     def run(self, argv):
+        self.log = LogStream()
+        self.given.where("#event") >> self.log
+        # self.given.where("$wrap") >> self.log
         if self.logfile is not None:
             self.gtf = GiveToFile(self.logfile, require_writable=False)
-            self.log = self.gtf.log
-            self.given.where("#event") >> self.log
+            self.log >> self.gtf.log
         else:
             self.gtf = None
-            self.log = lambda data: None
 
         with self.run_phase(self.phases.init):
             pass
