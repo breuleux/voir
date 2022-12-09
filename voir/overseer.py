@@ -9,7 +9,7 @@ from ptera import probing, select
 from voir.forward import GiveToFile
 
 from .phase import GivenPhaseRunner
-from .utils import exec_node, split_script
+from .scriptutils import exec_node, split_script
 
 
 class LogStream(SourceProxy):
