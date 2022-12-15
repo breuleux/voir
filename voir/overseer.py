@@ -1,13 +1,15 @@
 import sys
 import traceback
-from argparse import REMAINDER, ArgumentParser
+from argparse import REMAINDER
 from types import ModuleType
 
+import yaml
 from giving import SourceProxy
 from ptera import probing, select
 
 from voir.forward import GiveToFile
 
+from .argparse_ext import ExtendedArgumentParser
 from .phase import GivenPhaseRunner
 from .scriptutils import exec_node, split_script
 
@@ -30,7 +32,7 @@ class ProbeInstrument:
 
 class Overseer(GivenPhaseRunner):
     def __init__(self, instruments, logfile=None):
-        self.argparser = ArgumentParser()
+        self.argparser = ExtendedArgumentParser()
         self.argparser.add_argument("SCRIPT")
         self.argparser.add_argument("ARGV", nargs=REMAINDER)
         super().__init__(
@@ -71,7 +73,6 @@ class Overseer(GivenPhaseRunner):
     def run(self, argv):
         self.log = LogStream()
         self.given.where("#event") >> self.log
-        # self.given.where("$wrap") >> self.log
         if self.logfile is not None:
             self.gtf = GiveToFile(self.logfile, require_writable=False)
             self.log >> self.gtf.log
@@ -79,7 +80,11 @@ class Overseer(GivenPhaseRunner):
             self.gtf = None
 
         with self.run_phase(self.phases.init):
-            pass
+            tmp_argparser = ExtendedArgumentParser(add_help=False)
+            tmp_argparser.add_argument("--config", action="append", default=[])
+            tmp_options, argv = tmp_argparser.parse_known_args(argv)
+            for config in tmp_options.config:
+                self.argparser.merge_base_config(yaml.safe_load(open(config, "r")))
 
         with self.run_phase(self.phases.parse_args):
             self.options = self.argparser.parse_args(argv)

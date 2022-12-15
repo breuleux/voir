@@ -1,0 +1,21 @@
+usage: pytest [-h] [--helloes HELLOES] [--flag] [--no-flag] [--flog]
+              [--no-flog] [-x X] [--greeting GREETING]
+              [--scone.moistness MOISTNESS] [--scone.has-chocolate]
+              [--scone.no-has-chocolate]
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+Configuration:
+  --helloes HELLOES     Hello there
+  --flag                Flag this
+  --no-flag             (Default) Do not flag this
+  --flog                Flog this
+  --no-flog             (Default) Do not flog this
+  -x X                  Mystery.
+  --greeting GREETING   The greeting to use!
+
+Lovely muffinness:
+  --scone.moistness MOISTNESS
+  --scone.has-chocolate
+  --scone.no-has-chocolate
