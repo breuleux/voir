@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from voir.overseer import Overseer
+
 _progdir = Path(__file__).parent / "programs"
 
 
@@ -147,3 +149,14 @@ def capdata(data_fds):
                 return ""
 
         yield read
+
+
+@pytest.fixture
+def ov(data_fds):
+    r, w = data_fds
+    return Overseer(instruments=[], logfile=w)
+
+
+@pytest.fixture
+def ov_nodata():
+    return Overseer(instruments=[])

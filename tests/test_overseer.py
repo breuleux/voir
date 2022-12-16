@@ -21,18 +21,8 @@ def _crash(ov):
         raise ValueError("boom.")
 
 
-@pytest.fixture
-def ov(data_fds):
-    r, w = data_fds
-    return Overseer(instruments=[_probe, _crash], logfile=w)
-
-
-@pytest.fixture
-def ov_nodata():
-    return Overseer(instruments=[_probe, _crash])
-
-
 def test_probe(ov, capsys, capdata):
+    ov.require(_probe)
     ov(["--probe", "//main > greeting", program("hello")])
     assert capsys.readouterr().out == "hello world\n"
     assert '{"greeting": "hello"}' in capdata().split("\n")
@@ -51,6 +41,8 @@ def test_collatz(ov, outlines):
 
 
 def test_not_serializable(ov, outlines, capdata):
+    ov.require(_probe)
+
     ov(["--probe", "//main > parser", program("collatz"), "-n", "13"])
 
     results = [int(x) for x in outlines()]
@@ -78,5 +70,6 @@ def test_error_in_run(ov, check_all):
 
 
 def test_overseer_crash(ov, check_all):
+    ov.require(_crash)
     # Should not impede the program's execution
     ov(["--crash", program("collatz"), "-n", "13"])

@@ -1,6 +1,10 @@
+import functools
+import inspect
 from functools import partial
 
 from ovld import meta, ovld
+
+from .phase import PhaseRunner
 
 
 @ovld
@@ -44,3 +48,35 @@ def parametrized(  # noqa: F811
         ov.require(instrument)
 
     return run
+
+
+def instrument_definition(fn):
+    @ovld
+    def wrapped(ov: PhaseRunner, *args, **kwargs):
+        yield from fn(ov, *args, **kwargs)
+
+    @wrapped.register
+    def _(*args, **kwargs):
+        def instrument(ov):
+            yield from fn(ov, *args, **kwargs)
+
+        return instrument
+
+    return wrapped
+
+
+def configurable(fn):
+    argspec = inspect.getfullargspec(fn)
+    argname = argspec.args[1]
+    ann = argspec.annotations[argname]
+
+    @functools.wraps(fn)
+    def wrapped(ov):
+        yield ov.phases.init
+
+        ov.argparser.add_from_model(argname, ann)
+
+        yield ov.phases.parse_args
+        yield from fn(ov, getattr(ov.options, argname))
+
+    return wrapped

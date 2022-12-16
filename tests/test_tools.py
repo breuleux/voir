@@ -1,14 +1,8 @@
-import pytest
+from dataclasses import dataclass
 
-from voir.overseer import Overseer
-from voir.tools import gated, parametrized
+from voir.tools import configurable, gated, instrument_definition, parametrized
 
 from .common import program
-
-
-@pytest.fixture
-def ov():
-    return Overseer(instruments=[])
 
 
 @gated("--wow")
@@ -57,3 +51,37 @@ def test_parametrized(ov, outlines):
         "F U N K!",
         "F U N K!",
     ]
+
+
+@instrument_definition
+def instrument1(ov, x, y, z):
+    yield ov.phases.init
+    ov.log({"x": x, "y": y, "z": z})
+
+
+def test_instrument_definition(ov, check_all):
+    ov.require(instrument1(5, 6, 7))
+    ov([program("hello")])
+
+
+@dataclass
+class Configuration:
+    x: bool = True
+    zazz: int = 4
+
+
+@configurable
+def instrument2(ov, cfg: Configuration):
+    print(cfg)
+    yield ov.phases.init
+    ov.log({"x": cfg.x, "zazz": cfg.zazz})
+
+
+def test_configurable(ov, check_all):
+    ov.require(instrument2)
+    ov([program("hello")])
+
+
+def test_configurable2(ov, check_all):
+    ov.require(instrument2)
+    ov(["--no-x", "--zazz", "89", program("hello")])
