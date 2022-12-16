@@ -1,0 +1,23 @@
+##########
+# stdout #
+##########
+{'task': 'things', 'progress': (0, 5)}
+{'task': 'things', 'x': 10}
+{'task': 'things', 'progress': (1, 5)}
+{'task': 'things', 'x': 11}
+{'task': 'things', 'progress': (2, 5)}
+{'task': 'things', 'x': 12}
+{'task': 'things', 'progress': (3, 5)}
+{'task': 'things', 'x': 13}
+{'task': 'things', 'progress': (4, 5)}
+{'task': 'things', 'x': 14}
+{'task': 'things', 'progress': (5, 5)}
+
+##########
+# stderr #
+##########
+
+##########
+#  data  #
+##########
+

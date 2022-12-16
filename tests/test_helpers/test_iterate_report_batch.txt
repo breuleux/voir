@@ -1,0 +1,33 @@
+##########
+# stdout #
+##########
+{'task': 'things', 'progress': (0, 5)}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'begin', 'id': 0}, 'batch': 10}
+{'task': 'things', 'x': 10}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'end', 'id': 0}, 'batch': 10}
+{'task': 'things', 'progress': (1, 5)}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'begin', 'id': 1}, 'batch': 11}
+{'task': 'things', 'x': 11}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'end', 'id': 1}, 'batch': 11}
+{'task': 'things', 'progress': (2, 5)}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'begin', 'id': 2}, 'batch': 12}
+{'task': 'things', 'x': 12}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'end', 'id': 2}, 'batch': 12}
+{'task': 'things', 'progress': (3, 5)}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'begin', 'id': 3}, 'batch': 13}
+{'task': 'things', 'x': 13}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'end', 'id': 3}, 'batch': 13}
+{'task': 'things', 'progress': (4, 5)}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'begin', 'id': 4}, 'batch': 14}
+{'task': 'things', 'x': 14}
+{'task': 'things', '$wrap': {'name': 'step', 'step': 'end', 'id': 4}, 'batch': 14}
+{'task': 'things', 'progress': (5, 5)}
+
+##########
+# stderr #
+##########
+
+##########
+#  data  #
+##########
+

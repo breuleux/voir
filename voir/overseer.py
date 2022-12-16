@@ -10,6 +10,7 @@ from ptera import probing, select
 from voir.forward import GiveToFile
 
 from .argparse_ext import ExtendedArgumentParser
+from .helpers import current_overseer
 from .phase import GivenPhaseRunner
 from .scriptutils import exec_node, split_script
 
@@ -101,6 +102,7 @@ class Overseer(GivenPhaseRunner):
             set_value(func())
 
     def __call__(self, *args, **kwargs):
+        token = current_overseer.set(self)
         try:
             super().__call__(*args, **kwargs)
         except BaseException as e:
@@ -118,6 +120,7 @@ class Overseer(GivenPhaseRunner):
                 pass
             if self.gtf:
                 self.gtf.close()
+            current_overseer.reset(token)
 
 
 def find_script(script, field):
