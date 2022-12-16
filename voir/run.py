@@ -1,9 +1,12 @@
 import operator
+import sys
 from functools import reduce
 from pathlib import Path
-from runpy import run_path
+from runpy import run_module, run_path
 
 from ovld import ovld
+
+module = type(operator)
 
 
 def find_voirfiles(script_path):
@@ -40,8 +43,12 @@ def _to_instruments(self, value):  # noqa: F811
     return [value]
 
 
-def _collect_instruments(voirfile):
-    glb = run_path(voirfile, init_globals={}, run_name="__voir__")
+def _collect_instruments(voirfile, i):
+    name = "__voir__" if i == 0 else f"__voir{i}__"
+    md = module(name)
+    md.__file__ = voirfile
+    glb = run_path(voirfile, init_globals=vars(md), run_name=name)
+    sys.modules[name] = md
     pfx = "instrument_"
     if "__instruments__" in glb:
         return _to_instruments(glb["__instruments__"])
@@ -54,4 +61,8 @@ def _collect_instruments(voirfile):
 
 
 def collect_instruments(voirfiles):
-    return reduce(operator.add, [_collect_instruments(vf) for vf in voirfiles], [])
+    return reduce(
+        operator.add,
+        [_collect_instruments(vf, i) for i, vf in enumerate(voirfiles)],
+        [],
+    )
