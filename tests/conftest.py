@@ -1,5 +1,7 @@
 import json
 import os
+import re
+import select
 from copy import deepcopy
 from pathlib import Path
 
@@ -41,7 +43,7 @@ def _format(thing):
         return f"#{idx} {title}"
 
 
-template = """Readable
+run_program_template = """Readable
 =========
 {readable}
 Raw
@@ -80,6 +82,68 @@ def run_program(file_regression):
         raw = "\n".join(
             json.dumps(x) if x["#event"] != "binary" else str(x) for x in results
         )
-        file_regression.check(template.format(readable=readable, raw=raw))
+        file_regression.check(run_program_template.format(readable=readable, raw=raw))
 
     return run
+
+
+@pytest.fixture
+def outlines(capsys):
+    def read():
+        return [x for x in capsys.readouterr().out.split("\n") if x]
+
+    return read
+
+
+output_summary_template = """##########
+# stdout #
+##########
+{out}
+##########
+# stderr #
+##########
+{err}
+##########
+#  data  #
+##########
+{data}
+"""
+
+
+@pytest.fixture
+def output_summary(capsys, capdata):
+    def calc():
+        oe = capsys.readouterr()
+        dat = capdata()
+        txt = output_summary_template.format(out=oe.out, err=oe.err, data=dat)
+        txt = re.sub(string=txt, pattern='File "[^"]*", line [0-9]+', repl="<redacted>")
+        return txt
+
+    return calc
+
+
+@pytest.fixture
+def check_all(output_summary, file_regression):
+    yield
+    file_regression.check(output_summary())
+
+
+@pytest.fixture
+def data_fds():
+    r, w = os.pipe()
+    yield r, w
+
+
+@pytest.fixture
+def capdata(data_fds):
+    r, w = data_fds
+    with open(r, "r") as reader:
+
+        def read():
+            r, _, _ = select.select([reader], [], [], 0)
+            if reader in r:
+                return reader.read()
+            else:
+                return ""
+
+        yield read
