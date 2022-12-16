@@ -4,8 +4,6 @@ from functools import partial
 
 from ovld import meta, ovld
 
-from .phase import PhaseRunner
-
 
 @ovld
 def gated(flag: str):  # noqa: F811
@@ -51,12 +49,7 @@ def parametrized(  # noqa: F811
 
 
 def instrument_definition(fn):
-    @ovld
-    def wrapped(ov: PhaseRunner, *args, **kwargs):
-        yield from fn(ov, *args, **kwargs)
-
-    @wrapped.register
-    def _(*args, **kwargs):
+    def wrapped(*args, **kwargs):
         def instrument(ov):
             yield from fn(ov, *args, **kwargs)
 
