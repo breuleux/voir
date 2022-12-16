@@ -72,7 +72,6 @@ class Configuration:
 
 @configurable
 def instrument2(ov, cfg: Configuration):
-    print(cfg)
     yield ov.phases.init
     ov.log({"x": cfg.x, "zazz": cfg.zazz})
 
