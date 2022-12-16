@@ -14,14 +14,14 @@ Readable
 
 Raw
 =========
-{"#event": "start", "#data": {"time": "X"}}
-{"#event": "line", "#data": "<bonjour>\n", "#pipe": "stdout"}
-{"#event": "line", "#data": "/////\n", "#pipe": "stdout"}
-{"#event": "line", "#data": "hello world\n", "#pipe": "stdout"}
-{"#event": "line", "#data": "<bonsoir>\n", "#pipe": "stdout"}
-{"#event": "data", "#data": {"#event": {"type": "phase", "name": "init"}}, "#pipe": "data"}
-{"#event": "data", "#data": {"#event": {"type": "phase", "name": "parse_args"}}, "#pipe": "data"}
-{"#event": "data", "#data": {"#event": {"type": "phase", "name": "load_script"}}, "#pipe": "data"}
-{"#event": "data", "#data": {"#event": {"type": "phase", "name": "run_script"}}, "#pipe": "data"}
-{"#event": "data", "#data": {"#event": {"type": "phase", "name": "finalize"}}, "#pipe": "data"}
-{"#event": "end", "#data": {"time": "X", "return_code": 0}}
+{"$event": "start", "$data": {"time": "X"}}
+{"$event": "line", "$data": "<bonjour>\n", "$pipe": "stdout"}
+{"$event": "line", "$data": "/////\n", "$pipe": "stdout"}
+{"$event": "line", "$data": "hello world\n", "$pipe": "stdout"}
+{"$event": "line", "$data": "<bonsoir>\n", "$pipe": "stdout"}
+{"$event": "data", "$data": {"$event": {"type": "phase", "name": "init"}}, "$pipe": "data"}
+{"$event": "data", "$data": {"$event": {"type": "phase", "name": "parse_args"}}, "$pipe": "data"}
+{"$event": "data", "$data": {"$event": {"type": "phase", "name": "load_script"}}, "$pipe": "data"}
+{"$event": "data", "$data": {"$event": {"type": "phase", "name": "run_script"}}, "$pipe": "data"}
+{"$event": "data", "$data": {"$event": {"type": "phase", "name": "finalize"}}, "$pipe": "data"}
+{"$event": "end", "$data": {"time": "X", "return_code": 0}}

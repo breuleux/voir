@@ -9,19 +9,19 @@ Readable
 #1 data: {"message": 2}
 #1 data: {"message": 3}
 #1 data: {"message": 4}
-#1 data: {'#event': 'format_error', '#data': {'line': 'gargle gargle\n', 'error': 'JSONDecodeError', 'message': 'Expecting value: line 1 column 1 (char 0)'}}
+#1 data: {'$event': 'format_error', '$data': {'line': 'gargle gargle\n', 'error': 'JSONDecodeError', 'message': 'Expecting value: line 1 column 1 (char 0)'}}
 #1 end
 
 Raw
 =========
-{"#event": "start", "#data": {"time": "X"}, "index": 1}
-{"#event": "line", "#data": "to stdout\n", "index": 1, "#pipe": "stdout"}
-{"#event": "line", "#data": "to stdout again\n", "index": 1, "#pipe": "stdout"}
-{"#event": "line", "#data": "to stderr\n", "index": 1, "#pipe": "stderr"}
-{"#event": "data", "#data": {"message": 0}, "index": 1, "#pipe": "data"}
-{"#event": "data", "#data": {"message": 1}, "index": 1, "#pipe": "data"}
-{"#event": "data", "#data": {"message": 2}, "index": 1, "#pipe": "data"}
-{"#event": "data", "#data": {"message": 3}, "index": 1, "#pipe": "data"}
-{"#event": "data", "#data": {"message": 4}, "index": 1, "#pipe": "data"}
-{"#event": "format_error", "#data": {"line": "gargle gargle\n", "error": "JSONDecodeError", "message": "Expecting value: line 1 column 1 (char 0)"}, "index": 1, "#pipe": "data"}
-{"#event": "end", "#data": {"time": "X", "return_code": 0}, "index": 1}
+{"$event": "start", "$data": {"time": "X"}, "index": 1}
+{"$event": "line", "$data": "to stdout\n", "index": 1, "$pipe": "stdout"}
+{"$event": "line", "$data": "to stdout again\n", "index": 1, "$pipe": "stdout"}
+{"$event": "line", "$data": "to stderr\n", "index": 1, "$pipe": "stderr"}
+{"$event": "data", "$data": {"message": 0}, "index": 1, "$pipe": "data"}
+{"$event": "data", "$data": {"message": 1}, "index": 1, "$pipe": "data"}
+{"$event": "data", "$data": {"message": 2}, "index": 1, "$pipe": "data"}
+{"$event": "data", "$data": {"message": 3}, "index": 1, "$pipe": "data"}
+{"$event": "data", "$data": {"message": 4}, "index": 1, "$pipe": "data"}
+{"$event": "format_error", "$data": {"line": "gargle gargle\n", "error": "JSONDecodeError", "message": "Expecting value: line 1 column 1 (char 0)"}, "index": 1, "$pipe": "data"}
+{"$event": "end", "$data": {"time": "X", "return_code": 0}, "index": 1}

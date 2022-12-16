@@ -28,7 +28,7 @@ def test_gtf_bad_str():
     gtf = GiveToFile(w)
     gtf.log({"a": Terrible()})
     gtf.close()
-    assert open(r, "r").read() == '{"#unrepresentable": null}\n'
+    assert open(r, "r").read() == '{"$unrepresentable": null}\n'
 
 
 def test_multiplexer(run_program):

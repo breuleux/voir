@@ -48,7 +48,7 @@ def test_not_serializable(ov, outlines, capdata):
     results = [int(x) for x in outlines()]
     assert results == [13, 40, 20, 10, 5, 16, 8, 4, 2]
 
-    assert "#unserializable" in capdata()
+    assert "$unserializable" in capdata()
 
 
 def test_error_unknown_program(ov, output_summary, file_regression):

@@ -19,16 +19,16 @@ def progdir():
 
 def _format(thing):
     idx = thing.pop("index", 1)
-    title = thing.pop("#pipe", "---")
-    evt = thing["#event"]
-    data = thing["#data"]
+    title = thing.pop("$pipe", "---")
+    evt = thing["$event"]
+    data = thing["$data"]
     content = None
     if evt == "line":
         content = data
     elif evt == "binary":
         content = f"{data}\n"
     elif evt == "data":
-        subevt = data.pop("#event", None)
+        subevt = data.pop("$event", None)
         if subevt is not None:
             title = f"{title}.{subevt.pop('type')}"
             content = f"{json.dumps(subevt)}\n"
@@ -58,7 +58,7 @@ order = ["start", "stdout", "stderr", "data", "end"]
 
 
 def _order_key(entry):
-    return order.index(entry.get("#pipe", entry["#event"]))
+    return order.index(entry.get("$pipe", entry["$event"]))
 
 
 @pytest.fixture
@@ -77,12 +77,12 @@ def run_program(file_regression):
             results.sort(key=_order_key)
         for r in results:
             # Patch out the times because they will change from a run to the other
-            if r["#event"] in ("start", "end"):
-                r["#data"]["time"] = "X"
+            if r["$event"] in ("start", "end"):
+                r["$data"]["time"] = "X"
 
         readable = "".join(_format(deepcopy(x)) for x in results)
         raw = "\n".join(
-            json.dumps(x) if x["#event"] != "binary" else str(x) for x in results
+            json.dumps(x) if x["$event"] != "binary" else str(x) for x in results
         )
         file_regression.check(run_program_template.format(readable=readable, raw=raw))
 

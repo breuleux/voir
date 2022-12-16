@@ -303,7 +303,7 @@ class GivenPhaseRunner(PhaseRunner):
     def queue(self, **data):
         """Give data into a queue, typically from other threads."""
         if not self._queue_called:
-            qd = self.given.where("!#queued")
+            qd = self.given.where("!$queued")
 
             @qd.subscribe
             def _(_):
@@ -313,7 +313,7 @@ class GivenPhaseRunner(PhaseRunner):
 
         self._queue_called = True
 
-        data["#queued"] = time.time()
+        data["$queued"] = time.time()
         self._queue.put(data)
 
     def __call__(self, *args, **kwargs):

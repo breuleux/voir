@@ -9,9 +9,9 @@
 ##########
 #  data  #
 ##########
-{"#event": {"type": "phase", "name": "init"}}
-{"#event": {"type": "phase", "name": "parse_args"}}
-{"#event": {"type": "phase", "name": "load_script"}}
-{"#event": {"type": "error", "data": {"type": "FileNotFoundError", "message": "[Errno 2] No such file or directory: 'X'"}}}
-{"#event": {"type": "phase", "name": "finalize"}}
+{"$event": {"type": "phase", "name": "init"}}
+{"$event": {"type": "phase", "name": "parse_args"}}
+{"$event": {"type": "phase", "name": "load_script"}}
+{"$event": {"type": "error", "data": {"type": "FileNotFoundError", "message": "[Errno 2] No such file or directory: 'X'"}}}
+{"$event": {"type": "phase", "name": "finalize"}}
 

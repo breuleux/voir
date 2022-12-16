@@ -24,9 +24,9 @@ class GiveToFile:
             txt = json.dumps(data)
         except TypeError:
             try:
-                txt = json.dumps({"#unserializable": str(data)})
+                txt = json.dumps({"$unserializable": str(data)})
             except Exception:
-                txt = json.dumps({"#unrepresentable": None})
+                txt = json.dumps({"$unrepresentable": None})
         self.out.write(f"{txt}\n")
 
     def close(self):
@@ -65,15 +65,15 @@ class Multiplexer:
             proc=proc,
             info=info,
             streams=[
-                Stream(pipe=proc.stdout, info={"#pipe": "stdout"}, deserializer=None),
-                Stream(pipe=proc.stderr, info={"#pipe": "stderr"}, deserializer=None),
-                Stream(pipe=readdata, info={"#pipe": "data"}, deserializer=json.loads),
+                Stream(pipe=proc.stdout, info={"$pipe": "stdout"}, deserializer=None),
+                Stream(pipe=proc.stderr, info={"$pipe": "stderr"}, deserializer=None),
+                Stream(pipe=readdata, info={"$pipe": "data"}, deserializer=json.loads),
             ],
         )
         self.buffer.append(
             {
-                "#event": "start",
-                "#data": {
+                "$event": "start",
+                "$data": {
                     "time": time.time(),
                 },
                 **info,
@@ -91,11 +91,11 @@ class Multiplexer:
             if s.deserializer:
                 try:
                     data = s.deserializer(line)
-                    yield {"#event": "data", "#data": data, **pinfo, **s.info}
+                    yield {"$event": "data", "$data": data, **pinfo, **s.info}
                 except Exception as e:
                     yield {
-                        "#event": "format_error",
-                        "#data": {
+                        "$event": "format_error",
+                        "$data": {
                             "line": line,
                             "error": type(e).__name__,
                             "message": str(e),
@@ -104,9 +104,9 @@ class Multiplexer:
                         **s.info,
                     }
             else:
-                yield {"#event": "line", "#data": line, **pinfo, **s.info}
+                yield {"$event": "line", "$data": line, **pinfo, **s.info}
         except UnicodeDecodeError:
-            yield {"#event": "binary", "#data": line, **pinfo, **s.info}
+            yield {"$event": "binary", "$data": line, **pinfo, **s.info}
 
     def __iter__(self):
         yield from self.buffer
@@ -133,8 +133,8 @@ class Multiplexer:
                         del self.processes[proc]
                         yield (
                             {
-                                "#event": "end",
-                                "#data": {
+                                "$event": "end",
+                                "$data": {
                                     "time": time.time(),
                                     "return_code": ret,
                                 },

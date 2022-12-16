@@ -28,10 +28,10 @@ ValueError: boom.
 ##########
 #  data  #
 ##########
-{"#event": {"type": "phase", "name": "init"}}
-{"#event": {"type": "phase", "name": "parse_args"}}
-{"#event": {"type": "phase", "name": "load_script"}}
-{"#event": {"type": "overseer_error", "data": {"type": "ValueError", "message": "boom."}}}
-{"#event": {"type": "phase", "name": "run_script"}}
-{"#event": {"type": "phase", "name": "finalize"}}
+{"$event": {"type": "phase", "name": "init"}}
+{"$event": {"type": "phase", "name": "parse_args"}}
+{"$event": {"type": "phase", "name": "load_script"}}
+{"$event": {"type": "overseer_error", "data": {"type": "ValueError", "message": "boom."}}}
+{"$event": {"type": "phase", "name": "run_script"}}
+{"$event": {"type": "phase", "name": "finalize"}}
 
