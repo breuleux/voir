@@ -84,3 +84,13 @@ def test_configurable(ov, check_all):
 def test_configurable2(ov, check_all):
     ov.require(instrument2)
     ov(["--no-x", "--zazz", "89", program("hello")])
+
+
+def test_configurable3(ov, progdir, check_all):
+    ov.require(instrument2)
+    ov(["--config", str(progdir / "cfg.yaml"), program("hello")])
+
+
+def test_configurable4(ov, progdir, check_all):
+    ov.require(instrument2)
+    ov(["--config", str(progdir / "cfg.yaml"), "-x", program("hello")])

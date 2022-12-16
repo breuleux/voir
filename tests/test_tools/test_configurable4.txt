@@ -1,0 +1,19 @@
+##########
+# stdout #
+##########
+hello world
+
+##########
+# stderr #
+##########
+
+##########
+#  data  #
+##########
+{"#event": {"type": "phase", "name": "init"}}
+{"#event": {"type": "phase", "name": "parse_args"}}
+{"x": true, "zazz": 23}
+{"#event": {"type": "phase", "name": "load_script"}}
+{"#event": {"type": "phase", "name": "run_script"}}
+{"#event": {"type": "phase", "name": "finalize"}}
+
