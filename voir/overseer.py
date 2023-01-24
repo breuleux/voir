@@ -7,9 +7,8 @@ import yaml
 from giving import SourceProxy
 from ptera import probing, select
 
-from voir.forward import GiveToFile
-
 from .argparse_ext import ExtendedArgumentParser
+from .forward import GiveToFile
 from .helpers import current_overseer
 from .phase import GivenPhaseRunner
 from .scriptutils import exec_node, split_script

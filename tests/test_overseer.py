@@ -1,7 +1,5 @@
 import pytest
 
-from voir.overseer import Overseer
-
 from .common import program
 
 

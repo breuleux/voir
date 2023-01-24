@@ -2,7 +2,7 @@ import operator
 import sys
 from functools import reduce
 from pathlib import Path
-from runpy import run_module, run_path
+from runpy import run_path
 
 from ovld import ovld
 
