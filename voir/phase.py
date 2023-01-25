@@ -103,7 +103,7 @@ class PhaseRunner:
         self.status = "init"
         self._to_require = []
 
-    def require(self, func):
+    def _require(self, func):
         """Add a new handler.
 
         The same ``func`` will only be added once.
@@ -144,6 +144,10 @@ class PhaseRunner:
 
         self._step((0, next(_gid), gen, self.phases._boot))
         return state
+
+    def require(self, *funcs):
+        states = [self._require(func) for func in funcs]
+        return states[0] if len(states) == 1 else states
 
     def stop(self, value=None):
         raise StopProgram(value)
