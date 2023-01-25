@@ -3,15 +3,12 @@ import fnmatch
 from ..tools import instrument_definition
 
 
-def _keep(patterns):
-    optional = [p[1:] for p in patterns if p.startswith("+")]
-    patterns = [p for p in patterns if not p.startswith("+")]
-
+def _keep(patterns, context):
     def operation(data):
         result = {}
         ok = False
         for k, v in data.items():
-            if k in optional or any(fnmatch.fnmatch(k, p) for p in optional):
+            if k in context or any(fnmatch.fnmatch(k, p) for p in context):
                 result[k] = v
             if k in patterns or any(fnmatch.fnmatch(k, p) for p in patterns):
                 result[k] = v
@@ -22,6 +19,14 @@ def _keep(patterns):
 
 
 @instrument_definition
-def log(ov, *patterns):
+def log(ov, *patterns, context=[]):
+    if not isinstance(context, (list, tuple)):
+        context = [context]
+
     yield ov.phases.init
-    ov.given.map(_keep(patterns)).filter(lambda x: x) >> ov.log
+
+    more_context = {p[1:] for p in patterns if p.startswith("+")}
+    context = {*more_context, *context}
+    patterns = {p for p in patterns if not p.startswith("+")}
+
+    ov.given.map(_keep(patterns, context)).filter(lambda x: x) >> ov.log
