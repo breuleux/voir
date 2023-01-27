@@ -9,6 +9,7 @@ license = "MIT"
 python = "^3.6.2"
 ptera = "^1.1.0"
 ovld = "^0.3.2"
+omegaconf = "^2.3.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
