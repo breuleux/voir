@@ -10,10 +10,10 @@ hello world
 ##########
 #  data  #
 ##########
-{"$event": {"type": "phase", "name": "init"}}
+{"$event": "phase", "$data": {"name": "init"}}
 {"x": 5, "y": 6, "z": 7}
-{"$event": {"type": "phase", "name": "parse_args"}}
-{"$event": {"type": "phase", "name": "load_script"}}
-{"$event": {"type": "phase", "name": "run_script"}}
-{"$event": {"type": "phase", "name": "finalize"}}
+{"$event": "phase", "$data": {"name": "parse_args"}}
+{"$event": "phase", "$data": {"name": "load_script"}}
+{"$event": "phase", "$data": {"name": "run_script"}}
+{"$event": "phase", "$data": {"name": "finalize"}}
 

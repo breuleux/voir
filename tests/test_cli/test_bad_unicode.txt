@@ -15,9 +15,9 @@ Raw
 {"$event": "start", "$data": {"time": "X"}}
 {"$event": "line", "$data": "<hey>\n", "$pipe": "stdout"}
 {'$event': 'binary', '$data': b'\xc3(<bye>\n', '$pipe': 'stdout'}
-{"$event": "data", "$data": {"$event": {"type": "phase", "name": "init"}}, "$pipe": "data"}
-{"$event": "data", "$data": {"$event": {"type": "phase", "name": "parse_args"}}, "$pipe": "data"}
-{"$event": "data", "$data": {"$event": {"type": "phase", "name": "load_script"}}, "$pipe": "data"}
-{"$event": "data", "$data": {"$event": {"type": "phase", "name": "run_script"}}, "$pipe": "data"}
-{"$event": "data", "$data": {"$event": {"type": "phase", "name": "finalize"}}, "$pipe": "data"}
+{"$event": "phase", "$data": {"name": "init"}, "$pipe": "data"}
+{"$event": "phase", "$data": {"name": "parse_args"}, "$pipe": "data"}
+{"$event": "phase", "$data": {"name": "load_script"}, "$pipe": "data"}
+{"$event": "phase", "$data": {"name": "run_script"}, "$pipe": "data"}
+{"$event": "phase", "$data": {"name": "finalize"}, "$pipe": "data"}
 {"$event": "end", "$data": {"time": "X", "return_code": 0}}

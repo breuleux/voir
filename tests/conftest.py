@@ -28,16 +28,12 @@ def _format(thing):
     elif evt == "binary":
         content = f"{data}\n"
     elif evt == "data":
-        subevt = data.pop("$event", None)
-        if subevt is not None:
-            title = f"{title}.{subevt.pop('type')}"
-            content = f"{json.dumps(subevt)}\n"
-        else:
-            content = f"{json.dumps(data)}\n"
+        content = f"{json.dumps(data)}\n"
     elif evt == "start" or evt == "end":
         title = f"{evt}\n"
     else:
-        content = f"{str(thing)}\n"
+        title = f"{title}.{evt}"
+        content = f"{json.dumps(data)}\n"
 
     if content:
         return f"#{idx} {title}: {content}"

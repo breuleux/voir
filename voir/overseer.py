@@ -47,10 +47,8 @@ class Overseer(GivenPhaseRunner):
     def on_overseer_error(self, e):
         self.log(
             {
-                "$event": {
-                    "type": "overseer_error",
-                    "data": {"type": type(e).__name__, "message": str(e)},
-                }
+                "$event": "overseer_error",
+                "$data": {"type": type(e).__name__, "message": str(e)},
             }
         )
         print("=" * 80, file=sys.stderr)
@@ -67,7 +65,7 @@ class Overseer(GivenPhaseRunner):
         return self.require(ProbeInstrument(select(selector, skip_frames=1)))
 
     def run_phase(self, phase):
-        self.log({"$event": {"type": "phase", "name": phase.name}})
+        self.log({"$event": "phase", "$data": {"name": phase.name}})
         return super().run_phase(phase)
 
     def run(self, argv):
@@ -107,10 +105,8 @@ class Overseer(GivenPhaseRunner):
         except BaseException as e:
             self.log(
                 {
-                    "$event": {
-                        "type": "error",
-                        "data": {"type": type(e).__name__, "message": str(e)},
-                    }
+                    "$event": "error",
+                    "$data": {"type": type(e).__name__, "message": str(e)},
                 }
             )
             raise

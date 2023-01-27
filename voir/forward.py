@@ -91,7 +91,10 @@ class Multiplexer:
             if s.deserializer:
                 try:
                     data = s.deserializer(line)
-                    yield {"$event": "data", "$data": data, **pinfo, **s.info}
+                    if "$event" in data:
+                        yield {**data, **pinfo, **s.info}
+                    else:
+                        yield {"$event": "data", "$data": data, **pinfo, **s.info}
                 except Exception as e:
                     yield {
                         "$event": "format_error",
