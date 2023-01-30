@@ -17,23 +17,21 @@ def progdir():
     return _progdir
 
 
-def _format(thing):
-    idx = thing.pop("index", 1)
-    title = thing.pop("$pipe", "---")
-    evt = thing["$event"]
-    data = thing["$data"]
+def _format(x):
+    idx = x.get("index", 1)
+    title = x.pipe or "---"
     content = None
-    if evt == "line":
-        content = data
-    elif evt == "binary":
-        content = f"{data}\n"
-    elif evt == "data":
-        content = f"{json.dumps(data)}\n"
-    elif evt == "start" or evt == "end":
-        title = f"{evt}\n"
+    if x.event == "line":
+        content = x.data
+    elif x.event == "binary":
+        content = f"{x.data}\n"
+    elif x.event == "data":
+        content = f"{json.dumps(x.data)}\n"
+    elif x.event == "start" or x.event == "end":
+        title = f"{x.event}\n"
     else:
-        title = f"{title}.{evt}"
-        content = f"{json.dumps(data)}\n"
+        title = f"{title}.{x.event}"
+        content = f"{json.dumps(x.data)}\n"
 
     if content:
         return f"#{idx} {title}: {content}"
@@ -54,31 +52,33 @@ order = ["start", "stdout", "stderr", "data", "end"]
 
 
 def _order_key(entry):
-    return order.index(entry.get("$pipe", entry["$event"]))
+    return order.index(entry.pipe or entry.event)
 
 
 @pytest.fixture
 def run_program(file_regression):
     from voir.forward import Multiplexer
 
-    def run(argv, info={}, voirfile=None, env=None, reorder=True, **kwargs):
+    def run(
+        argv, info={}, voirfile=None, env=None, reorder=True, constructor=None, **kwargs
+    ):
         if env is None:
             env = os.environ
         if voirfile is not None:
             env = {**os.environ, "VOIRFILE": voirfile}
-        mp = Multiplexer(timeout=None)
+        mp = Multiplexer(timeout=None, constructor=constructor)
         mp.run(argv, info=info, cwd=_progdir, env=env, **kwargs)
         results = list(mp)
         if reorder:
             results.sort(key=_order_key)
         for r in results:
             # Patch out the times because they will change from a run to the other
-            if r["$event"] in ("start", "end"):
-                r["$data"]["time"] = "X"
+            if r.event in ("start", "end"):
+                r.data["time"] = "X"
 
         readable = "".join(_format(deepcopy(x)) for x in results)
         raw = "\n".join(
-            json.dumps(x) if x["$event"] != "binary" else str(x) for x in results
+            x.json() if x.event != "binary" else str(x.dict()) for x in results
         )
         file_regression.check(run_program_template.format(readable=readable, raw=raw))
 

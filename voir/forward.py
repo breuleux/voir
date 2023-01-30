@@ -40,11 +40,28 @@ class Stream:
     deserializer: Callable = None
 
 
+class LogEntry:
+    def __init__(self, *, event, data, pipe=None):
+        self.event = event
+        self.data = data
+        self.pipe = pipe
+
+    def get(self, item, default):
+        return getattr(self, item, default)
+
+    def dict(self):
+        return dict(self.__dict__)
+
+    def json(self):
+        return json.dumps(self.__dict__)
+
+
 class Multiplexer:
-    def __init__(self, timeout=0):
+    def __init__(self, timeout=0, constructor=None):
         self.processes = {}
         self.blocking = timeout is None
         self.timeout = timeout
+        self.constructor = constructor or LogEntry
         self.buffer = []
 
     def run(self, argv, info, env=os.environ, **options):
@@ -65,19 +82,19 @@ class Multiplexer:
             proc=proc,
             info=info,
             streams=[
-                Stream(pipe=proc.stdout, info={"$pipe": "stdout"}, deserializer=None),
-                Stream(pipe=proc.stderr, info={"$pipe": "stderr"}, deserializer=None),
-                Stream(pipe=readdata, info={"$pipe": "data"}, deserializer=json.loads),
+                Stream(pipe=proc.stdout, info={"pipe": "stdout"}, deserializer=None),
+                Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
+                Stream(pipe=readdata, info={"pipe": "data"}, deserializer=json.loads),
             ],
         )
         self.buffer.append(
-            {
-                "$event": "start",
-                "$data": {
+            self.constructor(
+                event="start",
+                data={
                     "time": time.time(),
                 },
                 **info,
-            }
+            )
         )
         return proc
 
@@ -92,24 +109,35 @@ class Multiplexer:
                 try:
                     data = s.deserializer(line)
                     if "$event" in data:
-                        yield {**data, **pinfo, **s.info}
+                        yield self.constructor(
+                            event=data.pop("$event"),
+                            data=data.pop("$data", None),
+                            **data,
+                            **pinfo,
+                            **s.info,
+                        )
                     else:
-                        yield {"$event": "data", "$data": data, **pinfo, **s.info}
+                        yield self.constructor(
+                            event="data",
+                            data=data,
+                            **pinfo,
+                            **s.info,
+                        )
                 except Exception as e:
-                    yield {
-                        "$event": "format_error",
-                        "$data": {
+                    yield self.constructor(
+                        event="format_error",
+                        data={
                             "line": line,
                             "error": type(e).__name__,
                             "message": str(e),
                         },
                         **pinfo,
                         **s.info,
-                    }
+                    )
             else:
-                yield {"$event": "line", "$data": line, **pinfo, **s.info}
+                yield self.constructor(event="line", data=line, **pinfo, **s.info)
         except UnicodeDecodeError:
-            yield {"$event": "binary", "$data": line, **pinfo, **s.info}
+            yield self.constructor(event="binary", data=line, **pinfo, **s.info)
 
     def __iter__(self):
         yield from self.buffer
@@ -134,15 +162,13 @@ class Multiplexer:
                     ret = proc.poll()
                     if ret is not None:
                         del self.processes[proc]
-                        yield (
-                            {
-                                "$event": "end",
-                                "$data": {
-                                    "time": time.time(),
-                                    "return_code": ret,
-                                },
-                                **info,
-                            }
+                        yield self.constructor(
+                            event="end",
+                            data={
+                                "time": time.time(),
+                                "return_code": ret,
+                            },
+                            **info,
                         )
 
             if not self.blocking:  # pragma: no cover

@@ -2,7 +2,13 @@ import os
 
 import pytest
 
-from voir.forward import GiveToFile
+from voir.forward import GiveToFile, LogEntry
+
+
+class LogWithIndex(LogEntry):
+    def __init__(self, index, **rest):
+        super().__init__(**rest)
+        self.index = index
 
 
 def test_gtf_invalid_fd():
@@ -32,4 +38,4 @@ def test_gtf_bad_str():
 
 
 def test_multiplexer(run_program):
-    run_program(["python", "datafd.py"], info={"index": 1})
+    run_program(["python", "datafd.py"], info={"index": 1}, constructor=LogWithIndex)

@@ -14,14 +14,14 @@ Readable
 
 Raw
 =========
-{"$event": "start", "$data": {"time": "X"}, "index": 1}
-{"$event": "line", "$data": "to stdout\n", "index": 1, "$pipe": "stdout"}
-{"$event": "line", "$data": "to stdout again\n", "index": 1, "$pipe": "stdout"}
-{"$event": "line", "$data": "to stderr\n", "index": 1, "$pipe": "stderr"}
-{"$event": "data", "$data": {"message": 0}, "index": 1, "$pipe": "data"}
-{"$event": "data", "$data": {"message": 1}, "index": 1, "$pipe": "data"}
-{"$event": "data", "$data": {"message": 2}, "index": 1, "$pipe": "data"}
-{"$event": "data", "$data": {"message": 3}, "index": 1, "$pipe": "data"}
-{"$event": "data", "$data": {"message": 4}, "index": 1, "$pipe": "data"}
-{"$event": "format_error", "$data": {"line": "gargle gargle\n", "error": "JSONDecodeError", "message": "Expecting value: line 1 column 1 (char 0)"}, "index": 1, "$pipe": "data"}
-{"$event": "end", "$data": {"time": "X", "return_code": 0}, "index": 1}
+{"event": "start", "data": {"time": "X"}, "pipe": null, "index": 1}
+{"event": "line", "data": "to stdout\n", "pipe": "stdout", "index": 1}
+{"event": "line", "data": "to stdout again\n", "pipe": "stdout", "index": 1}
+{"event": "line", "data": "to stderr\n", "pipe": "stderr", "index": 1}
+{"event": "data", "data": {"message": 0}, "pipe": "data", "index": 1}
+{"event": "data", "data": {"message": 1}, "pipe": "data", "index": 1}
+{"event": "data", "data": {"message": 2}, "pipe": "data", "index": 1}
+{"event": "data", "data": {"message": 3}, "pipe": "data", "index": 1}
+{"event": "data", "data": {"message": 4}, "pipe": "data", "index": 1}
+{"event": "format_error", "data": {"line": "gargle gargle\n", "error": "JSONDecodeError", "message": "Expecting value: line 1 column 1 (char 0)"}, "pipe": "data", "index": 1}
+{"event": "end", "data": {"time": "X", "return_code": 0}, "pipe": null, "index": 1}
