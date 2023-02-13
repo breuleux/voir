@@ -57,7 +57,7 @@ def _order_key(entry):
 
 @pytest.fixture
 def run_program(file_regression):
-    from voir.forward import Multiplexer
+    from voir.proc import Multiplexer
 
     def run(
         argv, info={}, voirfile=None, env=None, reorder=True, constructor=None, **kwargs
@@ -67,7 +67,7 @@ def run_program(file_regression):
         if voirfile is not None:
             env = {**os.environ, "VOIRFILE": voirfile}
         mp = Multiplexer(timeout=None, constructor=constructor)
-        mp.run(argv, info=info, cwd=_progdir, env=env, **kwargs)
+        mp.start(argv, info=info, cwd=_progdir, env=env, **kwargs)
         results = list(mp)
         if reorder:
             results.sort(key=_order_key)

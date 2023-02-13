@@ -7,32 +7,6 @@ from dataclasses import dataclass
 from typing import Callable
 
 
-class GiveToFile:
-    def __init__(self, filename, fields=None, require_writable=True):
-        self.fields = fields
-        self.filename = filename
-        try:
-            self.out = open(self.filename, "w", buffering=1)
-        except OSError:
-            if require_writable:
-                raise
-            self.out = open(os.devnull, "w")
-        self.out.__enter__()
-
-    def log(self, data):
-        try:
-            txt = json.dumps(data)
-        except TypeError:
-            try:
-                txt = json.dumps({"$unserializable": str(data)})
-            except Exception:
-                txt = json.dumps({"$unrepresentable": None})
-        self.out.write(f"{txt}\n")
-
-    def close(self):
-        self.out.__exit__()
-
-
 @dataclass
 class Stream:
     pipe: object
@@ -40,11 +14,11 @@ class Stream:
     deserializer: Callable = None
 
 
+@dataclass
 class LogEntry:
-    def __init__(self, *, event, data, pipe=None):
-        self.event = event
-        self.data = data
-        self.pipe = pipe
+    event: str
+    data: object
+    pipe: str = None
 
     def get(self, item, default):
         return getattr(self, item, default)
@@ -56,6 +30,12 @@ class LogEntry:
         return json.dumps(self.__dict__)
 
 
+def run(argv, info, timeout=0, constructor=None, env=os.environ, **options):
+    mp = Multiplexer(timeout=timeout, constructor=constructor)
+    mp.start(argv, info=info, env=env, **options)
+    yield from mp
+
+
 class Multiplexer:
     def __init__(self, timeout=0, constructor=None):
         self.processes = {}
@@ -64,7 +44,7 @@ class Multiplexer:
         self.constructor = constructor or LogEntry
         self.buffer = []
 
-    def run(self, argv, info, env=os.environ, **options):
+    def start(self, argv, info, env=os.environ, **options):
         r, w = os.pipe()
         proc = subprocess.Popen(
             argv,

@@ -1,3 +1,5 @@
+import json
+import os
 import sys
 import traceback
 from argparse import REMAINDER
@@ -8,10 +10,35 @@ from giving import SourceProxy
 from ptera import probing, select
 
 from .argparse_ext import ExtendedArgumentParser
-from .forward import GiveToFile
 from .helpers import current_overseer
 from .phase import GivenPhaseRunner
 from .scriptutils import exec_node, split_script
+
+
+class GiveToFile:
+    def __init__(self, filename, fields=None, require_writable=True):
+        self.fields = fields
+        self.filename = filename
+        try:
+            self.out = open(self.filename, "w", buffering=1)
+        except OSError:
+            if require_writable:
+                raise
+            self.out = open(os.devnull, "w")
+        self.out.__enter__()
+
+    def log(self, data):
+        try:
+            txt = json.dumps(data)
+        except TypeError:
+            try:
+                txt = json.dumps({"$unserializable": str(data)})
+            except Exception:
+                txt = json.dumps({"$unrepresentable": None})
+        self.out.write(f"{txt}\n")
+
+    def close(self):
+        self.out.__exit__()
 
 
 class LogStream(SourceProxy):
