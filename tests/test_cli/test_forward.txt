@@ -15,7 +15,7 @@ Readable
 
 Raw
 =========
-{"event": "start", "data": {"time": "X"}, "pipe": null}
+{"event": "start", "data": {"command": ["voir", "giver.py"], "time": "X"}, "pipe": null}
 {"event": "line", "data": "done\n", "pipe": "stdout"}
 {"event": "phase", "data": {"name": "init"}, "pipe": "data"}
 {"event": "phase", "data": {"name": "parse_args"}, "pipe": "data"}
@@ -26,4 +26,4 @@ Raw
 {"event": "data", "data": {"n": 2}, "pipe": "data"}
 {"event": "data", "data": {"n": 100}, "pipe": "data"}
 {"event": "phase", "data": {"name": "finalize"}, "pipe": "data"}
-{"event": "end", "data": {"time": "X", "return_code": 0}, "pipe": null}
+{"event": "end", "data": {"command": ["voir", "giver.py"], "time": "X", "return_code": 0}, "pipe": null}

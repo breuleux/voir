@@ -30,10 +30,10 @@ class LogEntry:
         return json.dumps(self.__dict__)
 
 
-def run(argv, info, timeout=0, constructor=None, env=os.environ, **options):
+def run(argv, info, timeout=None, constructor=None, env=os.environ, **options):
     mp = Multiplexer(timeout=timeout, constructor=constructor)
     mp.start(argv, info=info, env=env, **options)
-    yield from mp
+    return mp
 
 
 class Multiplexer:
@@ -60,6 +60,7 @@ class Multiplexer:
         os.set_blocking(r, False)
         self.add_process(
             proc=proc,
+            argv=argv,
             info=info,
             streams=[
                 Stream(pipe=proc.stdout, info={"pipe": "stdout"}, deserializer=None),
@@ -71,6 +72,7 @@ class Multiplexer:
             self.constructor(
                 event="start",
                 data={
+                    "command": argv,
                     "time": time.time(),
                 },
                 **info,
@@ -78,8 +80,8 @@ class Multiplexer:
         )
         return proc
 
-    def add_process(self, *, proc, info, streams):
-        self.processes[proc] = (streams, info)
+    def add_process(self, *, proc, info, argv, streams):
+        self.processes[proc] = (streams, argv, info)
 
     def _process_line(self, line, s, pinfo):
         try:
@@ -108,7 +110,7 @@ class Multiplexer:
                         event="format_error",
                         data={
                             "line": line,
-                            "error": type(e).__name__,
+                            "type": type(e).__name__,
                             "message": str(e),
                         },
                         **pinfo,
@@ -126,7 +128,7 @@ class Multiplexer:
         while self.processes:
             still_alive = set()
             to_consult = {}
-            for proc, (streams, info) in self.processes.items():
+            for proc, (streams, _, info) in self.processes.items():
                 to_consult.update({s.pipe: (s, proc, info) for s in streams})
 
             ready, _, _ = select.select(to_consult.keys(), [], [], self.timeout)
@@ -137,7 +139,7 @@ class Multiplexer:
                     yield from self._process_line(line, s, info)
                     still_alive.add(proc)
 
-            for proc, (streams, info) in list(self.processes.items()):
+            for proc, (streams, argv, info) in list(self.processes.items()):
                 if proc not in still_alive:
                     ret = proc.poll()
                     if ret is not None:
@@ -145,6 +147,7 @@ class Multiplexer:
                         yield self.constructor(
                             event="end",
                             data={
+                                "command": argv,
                                 "time": time.time(),
                                 "return_code": ret,
                             },
