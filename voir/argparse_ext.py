@@ -1,6 +1,7 @@
 import ast
 import inspect
 import tokenize
+import warnings
 from argparse import ArgumentParser
 from dataclasses import MISSING, dataclass, fields, is_dataclass
 from functools import partial
@@ -118,6 +119,7 @@ class ExtendedArgumentParser(ArgumentParser):
         self.constructors = {}
         self.base_configs = {}
         self.base_configs_locked = False
+        self.used_base_configs = set()
 
     def merge_base_config(self, config):
         if self.base_configs_locked:
@@ -135,6 +137,7 @@ class ExtendedArgumentParser(ArgumentParser):
         else:
             typ = type(model)
 
+        self.used_base_configs.add(dest)
         if dest in self.base_configs:
             assert model is MISSING
             model = OmegaConf.merge(OmegaConf.structured(typ), self.base_configs[dest])
@@ -153,6 +156,11 @@ class ExtendedArgumentParser(ArgumentParser):
         )
 
     def _parse_known_args(self, *args, **kwargs):
+        unused = set(self.base_configs) - self.used_base_configs
+        if unused:
+            warnings.warn(
+                f"Configuration blocks {unused} were not used. Valid blocks are: {self.used_base_configs}. Did you forget a nesting level?"
+            )
         ns, args = super()._parse_known_args(*args, **kwargs)
         _expand(ns, self.constructors)
         return ns, args
