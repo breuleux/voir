@@ -113,15 +113,15 @@ def get_gpu_info(arch=None):
             )
         elif cuda:
             arch = "cuda"
-            return cuda
+            results = cuda
         elif rocm:
             arch = "rocm"
-            return rocm
+            results = rocm
         else:
             arch = "cpu"
-            return {}
+            results = {}
 
-    if arch == "cuda":
+    elif arch == "cuda":
         results = get_cuda_info()
     elif arch == "rocm":
         results = get_rocm_info()
@@ -134,8 +134,7 @@ def get_gpu_info(arch=None):
             "arch in ('cuda', 'rocm', 'cpu')"
         )
 
-    results["arch"] = arch
-    return results
+    return {"arch": arch, "gpus": results}
 
 
 @instrument_definition
@@ -157,7 +156,7 @@ def gpu_monitor(ov, poll_interval=10):
                 "load": gpu["utilization"]["compute"],
                 "temperature": gpu["temperature"],
             }
-            for gpu in get_gpu_info().values()
+            for gpu in get_gpu_info()["gpus"].values()
             if gpu["device"] in ours
         }
         ov.give(task="main", gpudata=data)
