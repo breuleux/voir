@@ -515,6 +515,18 @@ files = [
 plugins = ["importlib-metadata"]
 
 [[package]]
+name = "pynvml"
+version = "11.5.0"
+description = "Python Bindings for the NVIDIA Management Library"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pynvml-11.5.0-py3-none-any.whl", hash = "sha256:5cce014ac01b098d08f06178f86c37be409b80b2e903a5a03ce15eed60f55e25"},
+    {file = "pynvml-11.5.0.tar.gz", hash = "sha256:d027b21b95b1088b9fc278117f9f61b7c67f8e33a787e9f83f735f0f71ac32d0"},
+]
+
+[[package]]
 name = "pytest"
 version = "7.2.2"
 description = "pytest: simple powerful testing with Python"
@@ -788,4 +800,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "a5f1cc99aa1d3f618e78d221efd642d1d3bbaba1a401907259b8cdc04291d6bd"
+content-hash = "e31709137840703993231a5230e82f5fdc67fc83606485a3df116859f719982c"
