@@ -179,6 +179,23 @@ def get_gpu_info(arch=None):
     return {"arch": arch, "gpus": results}
 
 
+class Monitor(Thread):
+    def __init__(self, ov, delay, func):
+        super().__init__(daemon=True)
+        self.ov = ov
+        self.stopped = False
+        self.delay = delay
+        self.func = func
+
+    def run(self):
+        while not self.stopped:
+            time.sleep(self.delay)
+            self.func()
+
+    def stop(self):
+        self.stopped = True
+
+
 @instrument_definition
 def gpu_monitor(ov, poll_interval=10, arch=None):
     yield ov.phases.load_script
@@ -191,7 +208,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
     else:
         ours = [str(x) for x in range(100)]
 
-    def monitor(_):
+    def monitor():
         data = {
             gpu["device"]: {
                 "memory": [gpu["memory"]["used"], gpu["memory"]["total"]],
@@ -203,9 +220,10 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
         }
         ov.give(task="main", gpudata=data)
 
-    ov.given.throttle(poll_interval) >> monitor
-
+    monitor_thread = Monitor(ov, poll_interval, monitor)
+    monitor_thread.start()
     try:
         yield ov.phases.run_script
     finally:
-        monitor(None)
+        monitor_thread.stop()
+        monitor()
