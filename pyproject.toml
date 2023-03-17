@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "voir"
-version = "0.2.0"
+version = "0.2.1"
 description = "Instrument, extend and visualize your programs"
 authors = ["Olivier Breuleux <breuleux@gmail.com>"]
 license = "MIT"
