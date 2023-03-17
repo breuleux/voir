@@ -3,24 +3,41 @@ import os
 import shutil
 import subprocess
 import sys
-
-from pynvml import nvmlInit
-from pynvml.nvml import NVMLError_DriverNotLoaded, NVMLError_LibraryNotFound
-from pynvml.smi import nvidia_smi
+import time
+from threading import Thread
 
 from ..tools import instrument_definition
 
-nvml_available = False
-try:
-    nvmlInit()
-    nvml_available = True
-except NVMLError_LibraryNotFound:
-    pass
-except NVMLError_DriverNotLoaded:
-    pass
+nvml_available = None
+
+
+def nvlm_init():
+    global nvml_available
+
+    if nvml_available is None:
+        from pynvml import nvmlInit
+        from pynvml.nvml import (
+            NVMLError_DriverNotLoaded,
+            NVMLError_LibraryNotFound,
+        )
+
+        nvml_available = False
+        try:
+            nvmlInit()
+            nvml_available = True
+        except NVMLError_LibraryNotFound:
+            pass
+        except NVMLError_DriverNotLoaded:
+            pass
+
+    return nvml_available
 
 
 def get_cuda_info():
+    from pynvml.smi import nvidia_smi
+
+    nvml_available = nvlm_init()
+
     def fix_num(n):
         if n == "N/A":
             n = None
@@ -73,7 +90,7 @@ def get_cuda_info():
     if not isinstance(gpus, list):
         gpus = [gpus]
 
-    return {i: parse_gpu(g, i) for i, g in enumerate(gpus)}
+    return {str(i): parse_gpu(g, i) for i, g in enumerate(gpus)}
 
 
 def _get_info(requires, command, parse_function):
@@ -92,52 +109,8 @@ def _get_info(requires, command, parse_function):
         return None
 
 
-# def get_cuda_info():
-#     return _get_info("nvidia-smi", "nvidia-smi -x -q | xml2json", parse_cuda)
-
-
 def get_rocm_info():
     return _get_info("rocm-smi", "rocm-smi -a --showmeminfo vram --json", parse_rocm)
-
-
-# def parse_cuda(info):
-#     def parse_num(n):
-#         n, units = n.split(" ")
-#         if units == "MiB":
-#             return int(n)
-#         elif units == "C" or units == "W":
-#             return float(n)
-#         elif units == "%":
-#             return float(n) / 100
-#         else:
-#             raise ValueError(n)
-
-#     def parse_gpu(gpu, gid):
-#         mem = gpu["fb_memory_usage"]
-#         used = parse_num(mem["used"])
-#         total = parse_num(mem["total"])
-#         return {
-#             "device": gid,
-#             "product": gpu["product_name"],
-#             "memory": {
-#                 "used": used,
-#                 "total": total,
-#             },
-#             "utilization": {
-#                 "compute": parse_num(gpu["utilization"]["gpu_util"]),
-#                 "memory": used / total,
-#             },
-#             "temperature": parse_num(gpu["temperature"]["gpu_temp"]),
-#             "power": parse_num(gpu["power_readings"]["power_draw"]),
-#             "selection_variable": "CUDA_VISIBLE_DEVICES",
-#         }
-
-#     data = info["nvidia_smi_log"]
-#     gpus = data["gpu"]
-#     if not isinstance(gpus, list):
-#         gpus = [gpus]
-
-#     return {i: parse_gpu(g, str(i)) for i, g in enumerate(gpus)}
 
 
 def parse_rocm(info):
@@ -226,7 +199,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
                 "temperature": gpu["temperature"],
             }
             for gpu in get_gpu_info(arch)["gpus"].values()
-            if gpu["device"] in ours
+            if str(gpu["device"]) in ours
         }
         ov.give(task="main", gpudata=data)
 
