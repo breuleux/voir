@@ -1,8 +1,12 @@
+import importlib
 import json
 import os
+import pkgutil
 import sys
 import traceback
 from argparse import REMAINDER
+from importlib.machinery import ModuleSpec
+from pathlib import Path
 from types import ModuleType
 
 import yaml
@@ -60,8 +64,17 @@ class ProbeInstrument:
 class Overseer(GivenPhaseRunner):
     def __init__(self, instruments, logfile=None):
         self.argparser = ExtendedArgumentParser()
-        self.argparser.add_argument("SCRIPT")
-        self.argparser.add_argument("ARGV", nargs=REMAINDER)
+        self.argparser.add_argument("SCRIPT", nargs="?", help="The script to run")
+        self.argparser.add_argument(
+            "ARGV", nargs=REMAINDER, help="Arguments to the script"
+        )
+        self.argparser.add_argument(
+            "-m",
+            dest="MODULE",
+            nargs=REMAINDER,
+            help="Module or module:function to run",
+        )
+
         super().__init__(
             phase_names=["init", "parse_args", "load_script", "run_script", "finalize"],
             args=(self,),
@@ -116,9 +129,7 @@ class Overseer(GivenPhaseRunner):
             del self.argparser
 
         with self.run_phase(self.phases.load_script):
-            script = self.options.SCRIPT
-            argv = self.options.ARGV
-            func = find_script(script)
+            script, argv, func = find_function(self.options)
 
         with self.run_phase(self.phases.run_script) as set_value:
             sys.argv = [script, *argv]
@@ -144,11 +155,34 @@ class Overseer(GivenPhaseRunner):
             current_overseer.reset(token)
 
 
-def find_script(script):
+def find_function(options):
+    if script := options.SCRIPT:
+        return script, options.ARGV, find_script(script)
+    elif module_args := options.MODULE:
+        module_spec, *argv = module_args
+        if ":" in module_spec:
+            module_name, field = module_spec.split(":", 1)
+            module = importlib.import_module(module_name)
+            return module_spec, argv, getattr(module, field)
+        else:
+            module_name = module_spec
+            script = Path(pkgutil.get_loader(module_name).get_filename())
+            if script.name == "__init__.py":
+                script = script.parent / "__main__.py"
+                module_name = f"{module_name}.__main__"
+            script = str(script)
+            return script, argv, find_script(script, module_name=module_name)
+    else:
+        sys.exit("Either SCRIPT or -m MODULE must be given.")
+
+
+def find_script(script, module_name=None):
     prep, mainsection = split_script(script)
     mod = ModuleType("__main__")
     glb = vars(mod)
     glb["__file__"] = script
+    if module_name:
+        glb["__spec__"] = ModuleSpec(name=module_name, loader=None)
     sys.modules["__main__"] = mod
     exec(prep, glb, glb)
     return lambda: exec(mainsection, glb, glb)

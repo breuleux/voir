@@ -1,0 +1,25 @@
+Readable
+=========
+#1 start
+#1 stdout: <hey>
+#1 stdout: Hello from packpack.lib
+#1 stdout: <bye>
+#1 data.phase: {"name": "init"}
+#1 data.phase: {"name": "parse_args"}
+#1 data.phase: {"name": "load_script"}
+#1 data.phase: {"name": "run_script"}
+#1 data.phase: {"name": "finalize"}
+#1 end
+
+Raw
+=========
+{"event": "start", "data": {"command": ["voir", "-m", "packpack"], "time": "X"}, "pipe": null}
+{"event": "line", "data": "<hey>\n", "pipe": "stdout"}
+{"event": "line", "data": "Hello from packpack.lib\n", "pipe": "stdout"}
+{"event": "line", "data": "<bye>\n", "pipe": "stdout"}
+{"event": "phase", "data": {"name": "init"}, "pipe": "data"}
+{"event": "phase", "data": {"name": "parse_args"}, "pipe": "data"}
+{"event": "phase", "data": {"name": "load_script"}, "pipe": "data"}
+{"event": "phase", "data": {"name": "run_script"}, "pipe": "data"}
+{"event": "phase", "data": {"name": "finalize"}, "pipe": "data"}
+{"event": "end", "data": {"command": ["voir", "-m", "packpack"], "time": "X", "return_code": 0}, "pipe": null}

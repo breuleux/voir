@@ -6,6 +6,14 @@ def test_cli(prelude, run_program):
     run_program([*prelude, "hello.py"])
 
 
+def test_cli_dash_m(run_program):
+    run_program(["voir", "-m", "hello:alt"])
+
+
+def test_cli_package(run_program):
+    run_program(["voir", "-m", "packpack"])
+
+
 def test_environ(run_program):
     run_program(["voir", "hello.py"], voirfile="voirfile_nested.py")
 
