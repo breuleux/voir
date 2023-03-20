@@ -12,7 +12,7 @@ from ptera import probing, select
 from .argparse_ext import ExtendedArgumentParser
 from .helpers import current_overseer
 from .phase import GivenPhaseRunner
-from .scriptutils import exec_node, split_script
+from .scriptutils import split_script
 
 
 class GiveToFile:
@@ -117,9 +117,8 @@ class Overseer(GivenPhaseRunner):
 
         with self.run_phase(self.phases.load_script):
             script = self.options.SCRIPT
-            field = "__main__"
             argv = self.options.ARGV
-            func = find_script(script, field)
+            func = find_script(script)
 
         with self.run_phase(self.phases.run_script) as set_value:
             sys.argv = [script, *argv]
@@ -145,13 +144,11 @@ class Overseer(GivenPhaseRunner):
             current_overseer.reset(token)
 
 
-def find_script(script, field):
-    node, mainsection = split_script(script)
+def find_script(script):
+    prep, mainsection = split_script(script)
     mod = ModuleType("__main__")
     glb = vars(mod)
     glb["__file__"] = script
     sys.modules["__main__"] = mod
-    code = compile(node, script, "exec")
-    exec(code, glb, glb)
-    glb["__main__"] = exec_node(script, mainsection, glb)
-    return glb[field]
+    exec(prep, glb, glb)
+    return lambda: exec(mainsection, glb, glb)
