@@ -6,6 +6,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
+from voir.smuggle import Decoder, MultimodalFile
+
 
 @dataclass
 class Stream:
@@ -44,30 +46,56 @@ class Multiplexer:
         self.constructor = constructor or LogEntry
         self.buffer = []
 
-    def start(self, argv, info, env=os.environ, **options):
-        r, w = os.pipe()
-        proc = subprocess.Popen(
-            argv,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            pass_fds=[w],
-            env={**env, "DATA_FD": str(w), "PYTHONUNBUFFERED": "1"},
-            **options,
-        )
-        readdata = open(r, "r", buffering=1)
-        os.set_blocking(proc.stdout.fileno(), False)
-        os.set_blocking(proc.stderr.fileno(), False)
-        os.set_blocking(r, False)
+    def start(self, argv, info, env=os.environ, use_stdout=False, **options):
+        if use_stdout:
+            proc = subprocess.Popen(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env={**env, "DATA_FD": "1", "PYTHONUNBUFFERED": "1"},
+                **options,
+            )
+            os.set_blocking(proc.stdout.fileno(), False)
+            os.set_blocking(proc.stderr.fileno(), False)
+
+            dec = Decoder(proc.stdout)
+            mout = MultimodalFile(dec, "out", name=proc.stdout.name)
+            mdat = MultimodalFile(dec, "data", name=proc.stdout.name)
+
+            streams = [
+                Stream(pipe=mout, info={"pipe": "stdout"}, deserializer=None),
+                Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
+                Stream(pipe=mdat, info={"pipe": "data"}, deserializer=json.loads),
+            ]
+
+        else:
+            r, w = os.pipe()
+            proc = subprocess.Popen(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                pass_fds=[w],
+                env={**env, "DATA_FD": str(w), "PYTHONUNBUFFERED": "1"},
+                **options,
+            )
+            readdata = open(r, "r", buffering=1)
+            os.set_blocking(proc.stdout.fileno(), False)
+            os.set_blocking(proc.stderr.fileno(), False)
+            os.set_blocking(r, False)
+
+            streams = [
+                Stream(pipe=proc.stdout, info={"pipe": "stdout"}, deserializer=None),
+                Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
+                Stream(pipe=readdata, info={"pipe": "data"}, deserializer=json.loads),
+            ]
+
         self.add_process(
             proc=proc,
             argv=argv,
             info=info,
-            streams=[
-                Stream(pipe=proc.stdout, info={"pipe": "stdout"}, deserializer=None),
-                Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
-                Stream(pipe=readdata, info={"pipe": "data"}, deserializer=json.loads),
-            ],
+            streams=streams,
         )
+
         self.buffer.append(
             self.constructor(
                 event="start",
@@ -129,15 +157,17 @@ class Multiplexer:
             still_alive = set()
             to_consult = {}
             for proc, (streams, _, info) in self.processes.items():
-                to_consult.update({s.pipe: (s, proc, info) for s in streams})
+                for s in streams:
+                    entries = to_consult.setdefault(s.pipe, [])
+                    entries.append((s, proc, info))
 
             ready, _, _ = select.select(to_consult.keys(), [], [], self.timeout)
 
             for r in ready:
                 while line := r.readline():
-                    s, proc, info = to_consult[r]
-                    yield from self._process_line(line, s, info)
-                    still_alive.add(proc)
+                    for s, proc, info in to_consult[r]:
+                        yield from self._process_line(line, s, info)
+                        still_alive.add(proc)
 
             for proc, (streams, argv, info) in list(self.processes.items()):
                 if proc not in still_alive:

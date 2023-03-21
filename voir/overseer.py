@@ -13,6 +13,8 @@ import yaml
 from giving import SourceProxy
 from ptera import probing, select
 
+from voir.smuggle import SmuggleWriter
+
 from .argparse_ext import ExtendedArgumentParser
 from .helpers import current_overseer
 from .phase import GivenPhaseRunner
@@ -23,12 +25,17 @@ class GiveToFile:
     def __init__(self, filename, fields=None, require_writable=True):
         self.fields = fields
         self.filename = filename
-        try:
-            self.out = open(self.filename, "w", buffering=1)
-        except OSError:
-            if require_writable:
-                raise
-            self.out = open(os.devnull, "w")
+        if self.filename == 1:
+            self.out = SmuggleWriter(sys.stdout)
+        elif self.filename == 2:
+            self.out = SmuggleWriter(sys.stderr)
+        else:
+            try:
+                self.out = open(self.filename, "w", buffering=1)
+            except OSError:
+                if require_writable:
+                    raise
+                self.out = open(os.devnull, "w")
         self.out.__enter__()
 
     def log(self, data):
