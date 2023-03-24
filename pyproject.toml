@@ -7,7 +7,8 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-ptera = "^1.1.0"
+ptera = "^1.4.1"
+giving = "^0.4.2"
 ovld = "^0.3.2"
 omegaconf = "^2.3.0"
 rich = "^13.3.2"

@@ -242,14 +242,14 @@ pyflakes = ">=2.4.0,<2.5.0"
 
 [[package]]
 name = "giving"
-version = "0.4.1"
+version = "0.4.2"
 description = "Reactive logging"
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "giving-0.4.1-py3-none-any.whl", hash = "sha256:2ba418ce8feeebccd5ee18357af9b245a3dc75c60e37b82fc90aa1a12af29f06"},
-    {file = "giving-0.4.1.tar.gz", hash = "sha256:79f870ecc68bc7aefe363e146b057ada9025f13c25121787616b8b3b561b03f9"},
+    {file = "giving-0.4.2-py3-none-any.whl", hash = "sha256:24c239fd6d3b58e38c1c847b7b553f8d8c9474f9f479341c56dead82facdf2fd"},
+    {file = "giving-0.4.2.tar.gz", hash = "sha256:d122c73b4c7d6ba7da277ac104ef3fce24e0ba3ff165427032d6446a129563e8"},
 ]
 
 [package.dependencies]
@@ -800,4 +800,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "e31709137840703993231a5230e82f5fdc67fc83606485a3df116859f719982c"
+content-hash = "a7c7deb4d88a2bb25cbaa6b7bf93af56d316a5d632b433331fc09ac90a998bcc"

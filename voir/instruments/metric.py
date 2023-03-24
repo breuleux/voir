@@ -65,15 +65,20 @@ def rate(ov, interval=1, method=None, multimodal_batch=True, sync=None):
             t1 = time.time_ns()
             task = results["task"]
             if "batch_size" in results:
+                bs = results["batch_size"]
+                if bs is None:
+                    return None
                 seconds = (t1 - t0) / 1_000_000_000
                 return {
                     "task": task,
                     "time": seconds,
-                    "batch_size": results["batch_size"],
+                    "batch_size": bs,
                 }
             elif "batch" in results:
-                seconds = (t1 - t0) / 1_000_000_000
                 data = results["batch"]
+                if data is None:
+                    return None
+                seconds = (t1 - t0) / 1_000_000_000
                 return {"task": task, "time": seconds, "batch_size": _batchsize(data)}
             else:
                 return None
