@@ -38,7 +38,7 @@ def test_rate(ov, interval, faketime):
     c = Collect()
 
     ov.require(c)
-    ov.require(rate(interval=interval, multimodal_batch=False))
+    ov.require(rate(interval=interval, batch_size_calc=len))
 
     ov([program("rates")])
     assert c.results == [100] * (10 // interval)
@@ -52,7 +52,7 @@ def test_sync(ov, interval, faketime):
     c = Collect()
 
     ov.require(c)
-    ov.require(rate(interval=interval, multimodal_batch=False, sync=sync))
+    ov.require(rate(interval=interval, batch_size_calc=len, sync=sync))
 
     expected_time = 10 * 0.1 + (10 // interval) * 0.9
 
