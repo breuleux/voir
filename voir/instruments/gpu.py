@@ -7,6 +7,7 @@ import time
 from threading import Thread
 
 from ..tools import instrument_definition
+from .utils import Monitor as Monitor2
 
 nvml_available = None
 
@@ -180,6 +181,8 @@ def get_gpu_info(arch=None):
 
 
 class Monitor(Thread):
+    # Keeping this class temporarily to avoid a breakage in milabench
+
     def __init__(self, ov, delay, func):
         super().__init__(daemon=True)
         self.ov = ov
@@ -220,7 +223,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
         }
         ov.give(task="main", gpudata=data)
 
-    monitor_thread = Monitor(ov, poll_interval, monitor)
+    monitor_thread = Monitor2(poll_interval, monitor)
     monitor_thread.start()
     try:
         yield ov.phases.run_script
