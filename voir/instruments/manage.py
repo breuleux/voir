@@ -12,7 +12,10 @@ def early_stop(ov, key, n, task=None, signal=StopProgram):
         nonlocal called
         if not called:
             called = True
-            raise signal(value)
+            if isinstance(signal, str):
+                ov.log({"$event": signal})
+            else:
+                raise signal(value)
 
     yield ov.phases.init
 
