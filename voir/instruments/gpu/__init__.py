@@ -37,7 +37,7 @@ def find_monitors():
 
 BACKENDS = find_monitors()
 BACKEND = None
-MONITOR = None
+DEVICESMI = None
 ARCH = None
 
 
@@ -47,10 +47,10 @@ def get_backends():
 
 
 def select_backend(arch=None):
-    global BACKEND, MONITOR, ARCH
+    global BACKEND, DEVICESMI, ARCH
 
-    if ARCH is not None:
-        return MONITOR, ARCH
+    if ARCH is not None and ARCH == arch:
+        return DEVICESMI, ARCH
 
     if arch is None:
         suitable = []
@@ -58,16 +58,16 @@ def select_backend(arch=None):
         for k, backend in BACKENDS.items():
             if backend.is_available():
                 try:
-                    m = backend.Monitor()
+                    m = backend.DeviceSMI()
                     suitable.append(k)
                 except Exception:
                     pass
 
         if len(suitable) > 1:
+            options = ", ".join(get_backends())
             raise Exception(
-                f"Milabench found multiple vendors ({suitable}) and does not"
-                " know which kind to use. Please set $MILABENCH_GPU_ARCH to 'cuda',"
-                " 'rocm' or 'cpu'."
+                f"Milabench found multiple vendors ({suitable}) and does not "
+                f"know which kind to use. Please set $MILABENCH_GPU_ARCH to one of {options}."
             )
         elif len(suitable) == 0:
             arch = "cpu"
@@ -78,16 +78,21 @@ def select_backend(arch=None):
     BACKEND = BACKENDS.get(arch)
 
     if BACKEND is not None and BACKEND.is_available():
-        MONITOR = BACKEND.Monitor()
+        DEVICESMI = BACKEND.DeviceSMI()
 
-    return MONITOR, ARCH
+    return DEVICESMI, ARCH
 
 
 def _reset():
-    global BACKEND, MONITOR, ARCH
+    global BACKEND, DEVICESMI, ARCH
     BACKEND = None
-    MONITOR = None
+    DEVICESMI = None
     ARCH = None
+
+
+def get_visible_devices():
+    global BACKEND
+    return BACKEND.get_visible_devices()
 
 
 def get_gpu_info(arch=None):
@@ -100,32 +105,12 @@ def get_gpu_info(arch=None):
     return {"arch": arch, "gpus": result}
 
 
-class Monitor(Thread):
-    # Keeping this class temporarily to avoid a breakage in milabench
-
-    def __init__(self, ov, delay, func):
-        super().__init__(daemon=True)
-        self.ov = ov
-        self.stopped = False
-        self.delay = delay
-        self.func = func
-
-    def run(self):
-        while not self.stopped:
-            time.sleep(self.delay)
-            self.func()
-
-    def stop(self):
-        self.stopped = True
-
-
 @instrument_definition
 def gpu_monitor(ov, poll_interval=10, arch=None):
     yield ov.phases.load_script
 
-    visible = os.environ.get("CUDA_VISIBLE_DEVICES", None) or os.environ.get(
-        "ROCR_VISIBLE_DEVICES", None
-    )
+    visible = get_visible_devices()
+
     if visible:
         ours = visible.split(",")
     else:
@@ -134,7 +119,10 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
     def monitor():
         data = {
             gpu["device"]: {
-                "memory": [gpu["memory"]["used"], gpu["memory"]["total"]],
+                "memory": [
+                    gpu["memory"]["used"],
+                    gpu["memory"]["total"],
+                ],
                 "load": gpu["utilization"]["compute"],
                 "temperature": gpu["temperature"],
             }

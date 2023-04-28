@@ -1,3 +1,5 @@
+import os
+
 IMPORT_ERROR = None
 try:
     import sys
@@ -147,6 +149,16 @@ def get_power(device):
     return "N/A"
 
 
+def get_product_name(device):
+    series = create_string_buffer(256)
+
+    ret = rocmsmi.rsmi_dev_name_get(device, series, 256)
+
+    series = series.value.decode()
+
+    return series
+
+
 def is_available():
     return IMPORT_ERROR is None
 
@@ -155,7 +167,11 @@ def get_arch():
     return "rocm"
 
 
-class Monitor:
+def get_visible_devices():
+    return os.environ.get("ROCR_VISIBLE_DEVICES", None)
+
+
+class DeviceSMI:
     def __init__(self) -> None:
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
@@ -171,7 +187,7 @@ class Monitor:
 
         return {
             "device": device,
-            "product": "ROCm Device",
+            "product": get_product_name(device),
             "memory": {
                 "used": used // (1024**2),
                 "total": total // (1024**2),
@@ -190,3 +206,6 @@ class Monitor:
         for device in self.devices:
             gpus[device] = self.get_gpu_info(device)
         return gpus
+
+    def close(self):
+        pass

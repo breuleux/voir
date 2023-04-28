@@ -1,3 +1,5 @@
+import os
+
 IMPORT_ERROR = None
 try:
     from pynvml import nvmlInit
@@ -44,7 +46,11 @@ def get_arch():
     return "cuda"
 
 
-class Monitor:
+def get_visible_devices():
+    return os.environ.get("CUDA_VISIBLE_DEVICES", None)
+
+
+class DeviceSMI:
     def __init__(self) -> None:
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
@@ -73,3 +79,6 @@ class Monitor:
             gpus = [gpus]
 
         return {str(i): parse_gpu(g, i) for i, g in enumerate(gpus)}
+
+    def close(self):
+        pass
