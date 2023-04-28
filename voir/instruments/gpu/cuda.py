@@ -11,6 +11,7 @@ def fix_num(n):
         n = None
     return n
 
+
 def parse_gpu(gpu, gid):
     mem = gpu["fb_memory_usage"]
     used = fix_num(mem["used"])
@@ -42,14 +43,15 @@ def is_available():
 def get_arch():
     return "cuda"
 
+
 class Monitor:
     def __init__(self) -> None:
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
-        
+
         nvmlInit()
         self.nvsmi = nvidia_smi.getInstance()
-        
+
     def get_gpus_info(self):
         to_query = [
             "gpu_name",

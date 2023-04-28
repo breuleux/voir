@@ -14,23 +14,22 @@ def find_monitors():
     base = __file__
     base_module = "voir.instruments.gpu"
     module_path = os.path.dirname(os.path.abspath(base))
-    pattern =  os.path.join(module_path, "[A-Za-z]*")
-    
-    
-    for module_path in glob.glob(pattern,recursive=False):
+    pattern = os.path.join(module_path, "[A-Za-z]*")
+
+    for module_path in glob.glob(pattern, recursive=False):
         module_file = module_path.split(os.sep)[-1]
-        
-        if module_file == '__init__.py':
+
+        if module_file == "__init__.py":
             continue
-        
+
         module_name = module_file.split(".py")[0]
-        
+
         try:
             module = __import__(".".join([base_module, module_name]), fromlist=[""])
         except ImportError:
             print(traceback.format_exc())
             continue
-        
+
         backends[module_name] = module
 
     return backends
@@ -49,13 +48,13 @@ def get_backends():
 
 def select_backend(arch=None):
     global BACKEND, MONITOR, ARCH
-    
+
     if ARCH is not None:
         return MONITOR, ARCH
 
     if arch is None:
         suitable = []
-        
+
         for k, backend in BACKENDS.items():
             if backend.is_available():
                 try:
@@ -63,34 +62,41 @@ def select_backend(arch=None):
                     suitable.append(k)
                 except Exception:
                     pass
-        
+
         if len(suitable) > 1:
-            raise Exception(        
+            raise Exception(
                 f"Milabench found multiple vendors ({suitable}) and does not"
                 " know which kind to use. Please set $MILABENCH_GPU_ARCH to 'cuda',"
                 " 'rocm' or 'cpu'."
             )
         elif len(suitable) == 0:
-            arch = 'cpu'
-        else: 
+            arch = "cpu"
+        else:
             arch = suitable[0]
 
     ARCH = arch
     BACKEND = BACKENDS.get(arch)
 
-    if BACKEND is not None and BACKEND.is_available(): 
+    if BACKEND is not None and BACKEND.is_available():
         MONITOR = BACKEND.Monitor()
-        
+
     return MONITOR, ARCH
 
-        
+
+def _reset():
+    global BACKEND, MONITOR, ARCH
+    BACKEND = None
+    MONITOR = None
+    ARCH = None
+
+
 def get_gpu_info(arch=None):
     monitor, arch = select_backend(arch)
-    
+
     result = {}
     if monitor is not None:
         result = monitor.get_gpus_info()
-    
+
     return {"arch": arch, "gpus": result}
 
 
