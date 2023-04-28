@@ -3,6 +3,7 @@ import time
 import pytest
 
 from voir.instruments.metric import rate
+from voir.instruments.gpu import get_backends
 
 from .common import program
 
@@ -58,3 +59,7 @@ def test_sync(ov, interval, faketime):
 
     ov([program("rates")])
     assert c.results == [round(100 / expected_time)] * (10 // interval)
+
+
+def test_gpu_info_multiple():
+    assert list(sorted(get_backends())) == ['cuda', 'rocm']
