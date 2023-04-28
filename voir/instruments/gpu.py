@@ -115,9 +115,15 @@ def get_rocm_info():
 
 
 def parse_rocm(info):
+    def to_type(value, type=float):
+        try:
+            return type(value)
+        except ValueError:
+            return float('nan')
+    
     def parse_gpu(gpu, gid):
-        used = int(gpu["VRAM Total Used Memory (B)"])
-        total = int(gpu["VRAM Total Memory (B)"])
+        used = to_type(gpu["VRAM Total Used Memory (B)"], int)
+        total = to_type(gpu["VRAM Total Memory (B)"], int)
         return {
             "device": gid,
             "product": "ROCm Device",
@@ -126,11 +132,11 @@ def parse_rocm(info):
                 "total": total // (1024**2),
             },
             "utilization": {
-                "compute": float(gpu["GPU use (%)"]) / 100,
+                "compute": to_type(gpu["GPU use (%)"]) / 100,
                 "memory": used / total,
             },
-            "temperature": float(gpu["Temperature (Sensor edge) (C)"]),
-            "power": float(gpu["Average Graphics Package Power (W)"]),
+            "temperature": to_type(gpu["Temperature (Sensor edge) (C)"]),
+            "power": to_type(gpu["Average Graphics Package Power (W)"]),
             "selection_variable": "ROCR_VISIBLE_DEVICES",
         }
 
