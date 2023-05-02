@@ -161,7 +161,7 @@ class PhaseRunner:
     def on_stop(self, value):
         self.status = "stopped"
         for entries in self.plan.values():
-            for (_, __, gen, ___) in entries:
+            for _, __, gen, ___ in entries:
                 try:
                     gen.throw(StopProgram(value))
                 except (StopProgram, StopIteration):

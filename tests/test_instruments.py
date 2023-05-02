@@ -2,6 +2,8 @@ import time
 
 import pytest
 
+from voir.errors import NotAvailable
+from voir.instruments.gpu import get_backends, get_gpu_info, select_backend
 from voir.instruments.metric import rate
 
 from .common import program
@@ -58,3 +60,21 @@ def test_sync(ov, interval, faketime):
 
     ov([program("rates")])
     assert c.results == [round(100 / expected_time)] * (10 // interval)
+
+
+def test_gpu_backend():
+    assert list(sorted(get_backends())) == ["cuda", "rocm"]
+
+
+def test_gpu_info_cpu():
+    assert get_gpu_info(arch="cpu") == {"arch": "cpu", "gpus": {}}
+
+
+def test_select_backend_rocm():
+    with pytest.raises(NotAvailable):
+        select_backend("rocm")
+
+
+def test_select_backend_cuda():
+    with pytest.raises(NotAvailable):
+        select_backend("cuda")
