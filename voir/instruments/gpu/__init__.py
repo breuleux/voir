@@ -58,7 +58,7 @@ def _is_backend_available(backend):
         return False
 
 
-def defuce_backend():
+def deduce_backend():
     suitable = []
     for k, backend in BACKENDS.items():
         if backend.is_installed() and _is_backend_available(backend):
@@ -86,7 +86,7 @@ def select_backend(arch=None):
         _reset()
 
     if arch is None:
-        arch = defuce_backend()
+        arch = deduce_backend()
 
     ARCH = arch
     BACKEND = BACKENDS.get(arch)
