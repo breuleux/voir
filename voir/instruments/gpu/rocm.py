@@ -194,8 +194,8 @@ class DeviceSMI:
             "device": device,
             "product": get_product_name(device),
             "memory": {
-                "used": used // (1024 ** 2),
-                "total": total // (1024 ** 2),
+                "used": used // (1024**2),
+                "total": total // (1024**2),
             },
             "utilization": {
                 "compute": float(util) / 100,

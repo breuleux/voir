@@ -72,9 +72,9 @@ def test_gpu_info_cpu():
 
 def test_select_backend_rocm():
     with pytest.raises(NotAvailable):
-        select_backend('rocm')
+        select_backend("rocm")
 
 
 def test_select_backend_cuda():
     with pytest.raises(NotAvailable):
-        select_backend('cuda')
+        select_backend("cuda")
