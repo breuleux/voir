@@ -1,12 +1,12 @@
+import glob
 import os
 import time
-import glob
 import traceback
 from threading import Thread
 
+from ...errors import NotAvailable
 from ...tools import instrument_definition
 from ..utils import Monitor as Monitor2
-from ...errors import NotAvailable
 
 
 def find_monitors():

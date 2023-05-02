@@ -5,11 +5,11 @@ from ...errors import NotAvailable
 IMPORT_ERROR = None
 try:
     from pynvml import nvmlInit
-    from pynvml.smi import nvidia_smi
     from pynvml.nvml import (
         NVMLError_DriverNotLoaded,
         NVMLError_LibraryNotFound,
     )
+    from pynvml.smi import nvidia_smi
 except ImportError as err:
     IMPORT_ERROR = err
 
