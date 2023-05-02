@@ -1,11 +1,13 @@
 import os
 
+from ...errors import NotAvailable
+
 IMPORT_ERROR = None
 try:
     import sys
 
     sys.path.append("/opt/rocm/libexec/rocm_smi/")
-    from rsmiBindings import *
+    import rsmiBindings as rsmi
 
 except ImportError as err:
     IMPORT_ERROR = err
@@ -20,9 +22,9 @@ def rsmi_ret_ok(my_ret, device=None, metric=None, silent=False):
     @param my_ret: Return of RSMI call (rocm_smi_lib API)
     @param metric: Parameter of GPU currently being analyzed
     """
-    if my_ret != rsmi_status_t.RSMI_STATUS_SUCCESS:
-        err_str = c_char_p()
-        rocmsmi.rsmi_status_string(my_ret, byref(err_str))
+    if my_ret != rsmi.rsmi_status_t.RSMI_STATUS_SUCCESS:
+        err_str = rsmi.c_char_p()
+        rsmi.rocmsmi.rsmi_status_string(my_ret, rsmi.byref(err_str))
 
         returnString = ""
         if device is not None:
@@ -58,20 +60,20 @@ def initialize_rsmi():
     """initializes rocmsmi if the amdgpu driver is initialized"""
     # Check if amdgpu is initialized before initializing rsmi
     if is_driver_initialized() is True:
-        ret_init = rocmsmi.rsmi_init(0)
+        ret_init = rsmi.rocmsmi.rsmi_init(0)
         if ret_init != 0:
-            raise RuntimeError(
+            raise NotAvailable(
                 "ROCm SMI returned %s (the expected value is 0)", ret_init
             )
     else:
-        raise RuntimeError("Driver not initialized (amdgpu not found in modules)")
+        raise NotAvailable("Driver not initialized (amdgpu not found in modules)")
 
 
 def list_devices():
     """Returns a list of GPU devices"""
 
-    numberOfDevices = c_uint32(0)
-    ret = rocmsmi.rsmi_num_monitor_devices(byref(numberOfDevices))
+    numberOfDevices = rsmi.c_uint32(0)
+    ret = rsmi.rocmsmi.rsmi_num_monitor_devices(rsmi.byref(numberOfDevices))
 
     if rsmi_ret_ok(ret):
         deviceList = list(range(numberOfDevices.value))
@@ -82,9 +84,9 @@ def list_devices():
 
 def get_gpu_use(device):
     """Return the current GPU usage as a percentage"""
-    percent = c_uint32()
+    percent = rsmi.c_uint32()
 
-    ret = rocmsmi.rsmi_dev_busy_percent_get(device, byref(percent))
+    ret = rsmi.rocmsmi.rsmi_dev_busy_percent_get(device, rsmi.byref(percent))
 
     if rsmi_ret_ok(ret, device, "GPU Utilization "):
         return percent.value
@@ -99,22 +101,22 @@ def get_mem_info(device, memType="vram"):
     @param type: [vram|vis_vram|gtt] Memory type to return
     """
     memType = memType.upper()
-    if memType not in memory_type_l:
+    if memType not in rsmi.memory_type_l:
         raise RuntimeError("Invalid memory type %s" % (memType))
 
-    memoryUse = c_uint64()
-    memoryTot = c_uint64()
+    memoryUse = rsmi.c_uint64()
+    memoryTot = rsmi.c_uint64()
     memUsed = None
     memTotal = None
 
-    ret = rocmsmi.rsmi_dev_memory_usage_get(
-        device, memory_type_l.index(memType), byref(memoryUse)
+    ret = rsmi.rocmsmi.rsmi_dev_memory_usage_get(
+        device, rsmi.memory_type_l.index(memType), rsmi.byref(memoryUse)
     )
     if rsmi_ret_ok(ret, device, memType):
         memUsed = memoryUse.value
 
-    ret = rocmsmi.rsmi_dev_memory_total_get(
-        device, memory_type_l.index(memType), byref(memoryTot)
+    ret = rsmi.rocmsmi.rsmi_dev_memory_total_get(
+        device, rsmi.memory_type_l.index(memType), rsmi.byref(memoryTot)
     )
     if rsmi_ret_ok(ret, device, memType + " total"):
         memTotal = memoryTot.value
@@ -127,10 +129,13 @@ def get_temp(device, sensor):
     @param device: DRM device identifier
     @param sensor: Temperature sensor identifier
     """
-    temp = c_int64(0)
-    metric = rsmi_temperature_metric_t.RSMI_TEMP_CURRENT
-    ret = rocmsmi.rsmi_dev_temp_metric_get(
-        c_uint32(device), temp_type_lst.index(sensor), metric, byref(temp)
+    temp = rsmi.c_int64(0)
+    metric = rsmi.rsmi_temperature_metric_t.RSMI_TEMP_CURRENT
+    ret = rsmi.rocmsmi.rsmi_dev_temp_metric_get(
+        rsmi.c_uint32(device),
+        rsmi.temp_type_lst.index(sensor),
+        metric,
+        rsmi.byref(temp),
     )
     if rsmi_ret_ok(ret, device, sensor, True):
         return temp.value / 1000
@@ -142,24 +147,24 @@ def get_power(device):
 
     @param device: DRM device identifier
     """
-    power = c_uint32()
-    ret = rocmsmi.rsmi_dev_power_ave_get(device, 0, byref(power))
+    power = rsmi.c_uint32()
+    ret = rsmi.rocmsmi.rsmi_dev_power_ave_get(device, 0, rsmi.byref(power))
     if rsmi_ret_ok(ret, device, "power"):
         return power.value / 1000000
     return "N/A"
 
 
 def get_product_name(device):
-    series = create_string_buffer(256)
+    series = rsmi.create_string_buffer(256)
 
-    ret = rocmsmi.rsmi_dev_name_get(device, series, 256)
+    rsmi.rocmsmi.rsmi_dev_name_get(device, series, 256)
 
     series = series.value.decode()
 
     return series
 
 
-def is_available():
+def is_installed():
     return IMPORT_ERROR is None
 
 
@@ -189,8 +194,8 @@ class DeviceSMI:
             "device": device,
             "product": get_product_name(device),
             "memory": {
-                "used": used // (1024**2),
-                "total": total // (1024**2),
+                "used": used // (1024 ** 2),
+                "total": total // (1024 ** 2),
             },
             "utilization": {
                 "compute": float(util) / 100,

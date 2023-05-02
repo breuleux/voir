@@ -1,9 +1,15 @@
 import os
 
+from ...errors import NotAvailable
+
 IMPORT_ERROR = None
 try:
     from pynvml import nvmlInit
     from pynvml.smi import nvidia_smi
+    from pynvml.nvml import (
+        NVMLError_DriverNotLoaded,
+        NVMLError_LibraryNotFound,
+    )
 except ImportError as err:
     IMPORT_ERROR = err
 
@@ -38,7 +44,7 @@ def parse_gpu(gpu, gid):
     }
 
 
-def is_available():
+def is_installed():
     return IMPORT_ERROR is None
 
 
@@ -55,8 +61,15 @@ class DeviceSMI:
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
 
-        nvmlInit()
-        self.nvsmi = nvidia_smi.getInstance()
+        try:
+            nvmlInit()
+            self.nvsmi = nvidia_smi.getInstance()
+
+        except NVMLError_LibraryNotFound as err:
+            raise NotAvailable() from err
+
+        except NVMLError_DriverNotLoaded as err:
+            raise NotAvailable() from err
 
     def get_gpus_info(self):
         to_query = [

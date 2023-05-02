@@ -6,6 +6,7 @@ from threading import Thread
 
 from ...tools import instrument_definition
 from ..utils import Monitor as Monitor2
+from ...errors import NotAvailable
 
 
 def find_monitors():
@@ -46,39 +47,55 @@ def get_backends():
     return BACKENDS.keys()
 
 
+def _is_backend_available(backend):
+    try:
+        smi = backend.DeviceSMI()
+
+        if len(smi.get_gpus_info()) > 0:
+            return True
+
+    except NotAvailable:
+        return False
+
+
+def defuce_backend():
+    suitable = []
+    for k, backend in BACKENDS.items():
+        if backend.is_installed() and _is_backend_available(backend):
+            suitable.append(k)
+
+    if len(suitable) > 1:
+        options = ", ".join(get_backends())
+        raise Exception(
+            f"Milabench found multiple vendors ({suitable}) and does not "
+            f"know which kind to use. Please set $MILABENCH_GPU_ARCH to one of {options}."
+        )
+
+    elif len(suitable) == 0:
+        return "cpu"
+
+    return suitable[0]
+
+
 def select_backend(arch=None):
     global BACKEND, DEVICESMI, ARCH
 
     if ARCH is not None and ARCH == arch:
         return DEVICESMI, ARCH
+    else:
+        _reset()
 
     if arch is None:
-        suitable = []
-
-        for k, backend in BACKENDS.items():
-            if backend.is_available():
-                try:
-                    m = backend.DeviceSMI()
-                    suitable.append(k)
-                except Exception:
-                    pass
-
-        if len(suitable) > 1:
-            options = ", ".join(get_backends())
-            raise Exception(
-                f"Milabench found multiple vendors ({suitable}) and does not "
-                f"know which kind to use. Please set $MILABENCH_GPU_ARCH to one of {options}."
-            )
-        elif len(suitable) == 0:
-            arch = "cpu"
-        else:
-            arch = suitable[0]
+        arch = defuce_backend()
 
     ARCH = arch
     BACKEND = BACKENDS.get(arch)
 
-    if BACKEND is not None and BACKEND.is_available():
-        DEVICESMI = BACKEND.DeviceSMI()
+    if BACKEND is not None:
+        if BACKEND.is_installed():
+            DEVICESMI = BACKEND.DeviceSMI()
+        else:
+            raise NotAvailable(f"{arch} is not installed")
 
     return DEVICESMI, ARCH
 
