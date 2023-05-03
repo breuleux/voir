@@ -168,14 +168,6 @@ def is_installed():
     return IMPORT_ERROR is None
 
 
-def get_arch():
-    return "rocm"
-
-
-def get_visible_devices():
-    return os.environ.get("ROCR_VISIBLE_DEVICES", None)
-
-
 class DeviceSMI:
     def __init__(self) -> None:
         if IMPORT_ERROR is not None:
@@ -205,6 +197,14 @@ class DeviceSMI:
             "power": power,
             "selection_variable": "ROCR_VISIBLE_DEVICES",
         }
+
+    @property
+    def arch(self):
+        return "rocm"
+
+    @property
+    def visible_devices(self):
+        return os.environ.get("ROCR_VISIBLE_DEVICES", None)
 
     def get_gpus_info(self):
         gpus = dict()

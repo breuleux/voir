@@ -63,11 +63,12 @@ def test_sync(ov, interval, faketime):
 
 
 def test_gpu_backend():
-    assert list(sorted(get_backends())) == ["cuda", "rocm"]
+    assert list(sorted(get_backends())) == ["cpu", "cuda", "rocm"]
 
 
 def test_gpu_info_cpu():
-    assert get_gpu_info(arch="cpu") == {"arch": "cpu", "gpus": {}}
+    smi = select_backend()
+    assert get_gpu_info(smi) == {"arch": "cpu", "gpus": {}}
 
 
 def test_select_backend_rocm():

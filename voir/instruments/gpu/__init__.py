@@ -1,8 +1,6 @@
 import glob
 import os
-import time
 import traceback
-from threading import Thread
 
 from ...errors import NotAvailable
 from ...tools import instrument_definition
@@ -37,9 +35,7 @@ def find_monitors():
 
 
 BACKENDS = find_monitors()
-BACKEND = None
 DEVICESMI = None
-ARCH = None
 
 
 def get_backends():
@@ -78,60 +74,51 @@ def deduce_backend():
 
 
 def select_backend(arch=None):
-    global BACKEND, DEVICESMI, ARCH
+    global DEVICESMI
 
-    if ARCH is not None and ARCH == arch:
-        return DEVICESMI, ARCH
-    else:
-        _reset()
+    if DEVICESMI is not None:
+        if DEVICESMI.arch == arch:
+            return DEVICESMI
+        DEVICESMI.close()
+        DEVICESMI = None
 
     if arch is None:
         arch = deduce_backend()
 
-    ARCH = arch
-    BACKEND = BACKENDS.get(arch)
+    backend = BACKENDS.get(arch)
 
-    if BACKEND is not None:
-        if BACKEND.is_installed():
-            DEVICESMI = BACKEND.DeviceSMI()
-        else:
-            raise NotAvailable(f"{arch} is not installed")
+    if backend is not None and backend.is_installed():
+        DEVICESMI = backend.DeviceSMI()
+    else:
+        raise NotAvailable(f"{arch} is not installed")
 
-    return DEVICESMI, ARCH
+    return DEVICESMI
 
 
-def _reset():
-    global BACKEND, DEVICESMI, ARCH
-    BACKEND = None
-    DEVICESMI = None
-    ARCH = None
+def get_gpu_info(smi):
+    return {
+        "arch": smi.arch,
+        "gpus": smi.get_gpus_info(),
+    }
 
 
-def get_visible_devices():
-    global BACKEND
-    return BACKEND.get_visible_devices()
+def _visible_devices(smi):
+    visible = smi.visible_devices
 
+    if visible:
+        ours = visible.split(",")
+    else:
+        ours = [str(x) for x in range(100)]
 
-def get_gpu_info(arch=None):
-    monitor, arch = select_backend(arch)
-
-    result = {}
-    if monitor is not None:
-        result = monitor.get_gpus_info()
-
-    return {"arch": arch, "gpus": result}
+    return ours
 
 
 @instrument_definition
 def gpu_monitor(ov, poll_interval=10, arch=None):
     yield ov.phases.load_script
 
-    visible = get_visible_devices()
-
-    if visible:
-        ours = visible.split(",")
-    else:
-        ours = [str(x) for x in range(100)]
+    smi = select_backend(arch)
+    ours = _visible_devices(smi)
 
     def monitor():
         data = {
@@ -143,7 +130,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
                 "load": gpu["utilization"]["compute"],
                 "temperature": gpu["temperature"],
             }
-            for gpu in get_gpu_info(arch)["gpus"].values()
+            for gpu in smi.get_gpus_info().values()
             if str(gpu["device"]) in ours
         }
         ov.give(task="main", gpudata=data)

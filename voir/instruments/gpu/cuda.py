@@ -48,14 +48,6 @@ def is_installed():
     return IMPORT_ERROR is None
 
 
-def get_arch():
-    return "cuda"
-
-
-def get_visible_devices():
-    return os.environ.get("CUDA_VISIBLE_DEVICES", None)
-
-
 class DeviceSMI:
     def __init__(self) -> None:
         if IMPORT_ERROR is not None:
@@ -70,6 +62,14 @@ class DeviceSMI:
 
         except NVMLError_DriverNotLoaded as err:
             raise NotAvailable() from err
+
+    @property
+    def arch(self):
+        return "cuda"
+
+    @property
+    def visible_devices():
+        return os.environ.get("CUDA_VISIBLE_DEVICES", None)
 
     def get_gpus_info(self):
         to_query = [
