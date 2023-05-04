@@ -95,11 +95,15 @@ def select_backend(arch=None):
     return DEVICESMI
 
 
-def get_gpu_info(smi):
+def gpu_info(smi):
     return {
         "arch": smi.arch,
         "gpus": smi.get_gpus_info(),
     }
+
+
+def get_gpu_info(arch=None):
+    return gpu_info(select_backend(arch))
 
 
 def _visible_devices(smi):

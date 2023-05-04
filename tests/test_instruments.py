@@ -67,8 +67,7 @@ def test_gpu_backend():
 
 
 def test_gpu_info_cpu():
-    smi = select_backend()
-    assert get_gpu_info(smi) == {"arch": "cpu", "gpus": {}}
+    assert get_gpu_info() == {"arch": "cpu", "gpus": {}}
 
 
 def test_select_backend_rocm():
