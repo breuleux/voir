@@ -11,7 +11,7 @@ class DeviceSMI:
         return "cpu"
 
     @property
-    def visible_devices():
+    def visible_devices(self):
         return ""
 
     def close(self):
