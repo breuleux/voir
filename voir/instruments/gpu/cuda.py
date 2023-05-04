@@ -68,7 +68,7 @@ class DeviceSMI:
         return "cuda"
 
     @property
-    def visible_devices():
+    def visible_devices(self):
         return os.environ.get("CUDA_VISIBLE_DEVICES", None)
 
     def get_gpus_info(self):
