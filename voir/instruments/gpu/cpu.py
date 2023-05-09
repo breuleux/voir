@@ -3,7 +3,7 @@ def is_installed():
 
 
 class DeviceSMI:
-    def get_gpus_info(self):
+    def get_gpus_info(self, selection=ModuleNotFoundError):
         return {}
 
     @property
@@ -11,7 +11,7 @@ class DeviceSMI:
         return "cpu"
 
     @property
-    def visible_devices():
+    def visible_devices(self):
         return ""
 
     def close(self):

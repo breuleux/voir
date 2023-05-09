@@ -67,7 +67,7 @@ class DeviceSMI:
         return "cuda"
 
     @property
-    def visible_devices():
+    def visible_devices(self):
         return os.environ.get("CUDA_VISIBLE_DEVICES", None)
 
     def get_gpus_info(self, selection=None):
@@ -93,15 +93,17 @@ class DeviceSMI:
             gpus = [gpus]
 
         # To support MIG we start using UUID instead of indexes
-        # Nevertheless indexes are usefull to quickly select specific GPUs
+        # Nevertheless indexes are useful to quickly select specific GPUs
         # so we support selecting GPUs using both
         results = dict()
         for g in gpus:
-            i = gpus["index"]
-            uuid = gpus["uuid"]
+            i = g["minor_number"]
+            uuid = g["uuid"]
 
-            if selection and (i in selection or uuid in selection):
-                results[uuid] = parse_gpu(g, uuid)
+            if (selection is None) or (
+                selection and (i in selection or uuid in selection)
+            ):
+                results[uuid] = parse_gpu(g, i)
 
         return results
 

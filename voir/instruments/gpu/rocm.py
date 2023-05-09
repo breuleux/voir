@@ -209,7 +209,7 @@ class DeviceSMI:
     def get_gpus_info(self, selection=None):
         gpus = dict()
         for device in self.devices:
-            if selection and device in selection:
+            if (selection is None) or (selection and device in selection):
                 gpus[device] = self.get_gpu_info(device)
 
         return gpus
