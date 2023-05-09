@@ -206,10 +206,12 @@ class DeviceSMI:
     def visible_devices(self):
         return os.environ.get("ROCR_VISIBLE_DEVICES", None)
 
-    def get_gpus_info(self):
+    def get_gpus_info(self, selection=None):
         gpus = dict()
         for device in self.devices:
-            gpus[device] = self.get_gpu_info(device)
+            if selection and device in selection:
+                gpus[device] = self.get_gpu_info(device)
+
         return gpus
 
     def close(self):

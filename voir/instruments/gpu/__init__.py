@@ -95,17 +95,6 @@ def select_backend(arch=None):
     return DEVICESMI
 
 
-def gpu_info(smi):
-    return {
-        "arch": smi.arch,
-        "gpus": smi.get_gpus_info(),
-    }
-
-
-def get_gpu_info(arch=None):
-    return gpu_info(select_backend(arch))
-
-
 def _visible_devices(smi):
     visible = smi.visible_devices
 
@@ -115,6 +104,23 @@ def _visible_devices(smi):
         ours = [str(x) for x in range(100)]
 
     return ours
+
+
+def gpu_info(smi, visible=True):
+    selection = None
+
+    # Make sure to only show the visible devices
+    if visible:
+        selection = _visible_devices(smi)
+
+    return {
+        "arch": smi.arch,
+        "gpus": smi.get_gpus_info(selection),
+    }
+
+
+def get_gpu_info(arch=None, visible=True):
+    return gpu_info(select_backend(arch), visible)
 
 
 @instrument_definition
