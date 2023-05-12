@@ -56,7 +56,6 @@ class DeviceSMI:
         try:
             nvmlInit()
             self.nvsmi = nvidia_smi.getInstance()
-
         except NVMLError_LibraryNotFound as err:
             raise NotAvailable() from err
 
@@ -71,9 +70,11 @@ class DeviceSMI:
     def visible_devices(self):
         return os.environ.get("CUDA_VISIBLE_DEVICES", None)
 
-    def get_gpus_info(self):
+    def get_gpus_info(self, selection=None):
         to_query = [
-            "gpu_name",
+            "uuid",  # Globally unique immutable alphanumeric identifier of the GPU
+            "index",  # Zero based index of the GPU. Can change at each boot.
+            "gpu_name",  # Official Product name
             "memory.free",
             "memory.used",
             "memory.total",
@@ -91,7 +92,20 @@ class DeviceSMI:
         if not isinstance(gpus, list):
             gpus = [gpus]
 
-        return {str(i): parse_gpu(g, i) for i, g in enumerate(gpus)}
+        # To support MIG we start using UUID instead of indexes
+        # Nevertheless indexes are useful to quickly select specific GPUs
+        # so we support selecting GPUs using both
+        results = dict()
+        for g in gpus:
+            i = g["minor_number"]
+            uuid = g["uuid"]
+
+            if (selection is None) or (
+                selection and (i in selection or uuid in selection)
+            ):
+                results[uuid] = parse_gpu(g, i)
+
+        return results
 
     def close(self):
         pass

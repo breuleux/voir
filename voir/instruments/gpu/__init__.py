@@ -95,15 +95,21 @@ def select_backend(arch=None):
     return DEVICESMI
 
 
-def gpu_info(smi):
+def gpu_info(smi, visible=True):
+    selection = None
+
+    # Make sure to only show the visible devices
+    if visible:
+        selection = _visible_devices(smi)
+
     return {
         "arch": smi.arch,
-        "gpus": smi.get_gpus_info(),
+        "gpus": smi.get_gpus_info(selection),
     }
 
 
-def get_gpu_info(arch=None):
-    return gpu_info(select_backend(arch))
+def get_gpu_info(arch=None, visible=True):
+    return gpu_info(select_backend(arch), visible)
 
 
 def _visible_devices(smi):

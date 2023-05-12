@@ -3,7 +3,7 @@ def is_installed():
 
 
 class DeviceSMI:
-    def get_gpus_info(self):
+    def get_gpus_info(self, selection=None):
         return {}
 
     @property
