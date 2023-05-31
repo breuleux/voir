@@ -96,8 +96,7 @@ class DeviceSMI:
         # Nevertheless indexes are useful to quickly select specific GPUs
         # so we support selecting GPUs using both
         results = dict()
-        for g in gpus:
-            i = g["minor_number"]
+        for i, g in enumerate(gpus):
             uuid = g["uuid"]
 
             if (selection is None) or (
