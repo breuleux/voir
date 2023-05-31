@@ -128,7 +128,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
     yield ov.phases.load_script
 
     smi = select_backend(arch)
-    ours = _visible_devices(smi)
+    # ours = _visible_devices(smi)
 
     def monitor():
         data = {
@@ -142,7 +142,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
                 "power": gpu["power"],
             }
             for gpu in smi.get_gpus_info().values()
-            if str(gpu["device"]) in ours
+            # if str(gpu["device"]) in ours
         }
         ov.give(task="main", gpudata=data)
 
