@@ -101,7 +101,7 @@ class DeviceSMI:
             uuid = g["uuid"]
 
             if (selection is None) or (
-                selection and (i in selection or uuid in selection)
+                selection and (str(i) in selection or uuid in selection)
             ):
                 results[uuid] = parse_gpu(g, i)
 
