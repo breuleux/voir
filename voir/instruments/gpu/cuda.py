@@ -97,10 +97,11 @@ class DeviceSMI:
         # so we support selecting GPUs using both
         results = dict()
         for i, g in enumerate(gpus):
+            i = str(i)
             uuid = g["uuid"]
 
             if (selection is None) or (
-                selection and (str(i) in selection or uuid in selection)
+                selection and (i in selection or uuid in selection)
             ):
                 results[uuid] = parse_gpu(g, i)
 
