@@ -43,7 +43,7 @@ class GiveToFile:
             txt = json.dumps(data)
         except TypeError:
             try:
-                txt = json.dumps({"$unserializable": str(data)})
+                txt = json.dumps({"$unserializable": repr(data)})
             except Exception:
                 txt = json.dumps({"$unrepresentable": None})
         self.out.write(f"{txt}\n")
