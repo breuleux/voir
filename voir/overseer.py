@@ -22,8 +22,7 @@ from .scriptutils import split_script
 
 
 class GiveToFile:
-    def __init__(self, filename, fields=None, require_writable=True):
-        self.fields = fields
+    def __init__(self, filename, require_writable=True):
         self.filename = filename
         if self.filename == 1:
             self.out = SmuggleWriter(sys.stdout)
