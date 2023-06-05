@@ -21,7 +21,16 @@ from .phase import GivenPhaseRunner
 from .scriptutils import split_script
 
 
-class GiveToFile:
+class JsonlFileLogger:
+    """Log data to a file as JSON lines.
+
+    Arguments:
+        filename: Either an integer representing a file descriptor to write to,
+            or a path.
+        require_writable: Require the file descriptor to be writable. If this is
+            False and the file is not writable, this logger will simply forward
+            the data to /dev/null instead of raising an OSError.
+    """
     def __init__(self, filename, require_writable=True):
         self.filename = filename
         if self.filename == 1:
@@ -38,6 +47,12 @@ class GiveToFile:
         self.out.__enter__()
 
     def log(self, data):
+        """Log a data dictionary as one JSON line into the file or file descriptor.
+
+        If the data is not serializable as JSON, it will be dumped as
+        ``{"$unserializable": repr(data)}``, and if _that_ fails, it will be
+        dumped as the singularly uninformative ``{"$unrepresentable": None}``.
+        """
         try:
             txt = json.dumps(data)
         except TypeError:
@@ -48,6 +63,7 @@ class GiveToFile:
         self.out.write(f"{txt}\n")
 
     def close(self):
+        """Close the file."""
         self.out.__exit__()
 
 
@@ -118,10 +134,10 @@ class Overseer(GivenPhaseRunner):
         self.log = LogStream()
         self.given.where("$event") >> self.log
         if self.logfile is not None:
-            self.gtf = GiveToFile(self.logfile, require_writable=False)
-            self.log >> self.gtf.log
+            self._logger = JsonlFileLogger(self.logfile, require_writable=False)
+            self.log >> self._logger.log
         else:
-            self.gtf = None
+            self._logger = None
 
         with self.run_phase(self.phases.init):
             tmp_argparser = ExtendedArgumentParser(add_help=False)
@@ -156,8 +172,8 @@ class Overseer(GivenPhaseRunner):
         finally:
             with self.run_phase(self.phases.finalize):
                 pass
-            if self.gtf:
-                self.gtf.close()
+            if self._logger:
+                self._logger.close()
             current_overseer.reset(token)
 
 
