@@ -4,18 +4,19 @@ import os
 import pkgutil
 import sys
 import traceback
-from argparse import REMAINDER
+from argparse import REMAINDER, Namespace
 from pathlib import Path
+from typing import Union
 
 import yaml
-from giving import SourceProxy
-from ptera import probing, select
+from giving import Given, SourceProxy
+from ptera import Probe, probing, select
 
 from voir.smuggle import SmuggleWriter
 
 from .argparse_ext import ExtendedArgumentParser
 from .helpers import current_overseer
-from .phase import GivenOverseer
+from .phase import GivenOverseer, Phase, PhaseSequence
 from .scriptutils import resolve_script
 
 
@@ -67,9 +68,9 @@ class JsonlFileLogger:
 
 
 class LogStream(SourceProxy):
-    """Callable wrapper over giving.gvn.SourceProxy.
+    """Callable wrapper over :class:`giving.gvn.SourceProxy`.
 
-    This has the same interface as https://giving.readthedocs.io/en/latest/ref-gvn.html#giving.gvn.Given
+    This has the same interface as :class:`giving.gvn.Given`.
     """
 
     def __call__(self, data):
@@ -97,7 +98,49 @@ class ProbeInstrument:
 
 
 class Overseer(GivenOverseer):
+    """Oversee the running of a script and schedule instruments.
+
+    When called with command-line arguments, the Overseer will parse instrument
+    configuration, followed by the script to run (first positional argument), and
+    then the script's arguments. Then it will load and run the script. Here is the
+    sequence of phases. An instrument should yield a phase to wait until it is ended:
+
+    * self.phases.init
+        * Set up the logger and self.given
+        * Parse the --config argument
+    * self.phases.parse_args
+        * Parse the command-line arguments
+    * self.phases.load_script
+        * Load the script's imports and functions
+    * self.phases.run_script
+        * Run the script
+    """
+
+    phases: PhaseSequence
+    """Sequence of phases the Overseer goes through."""
+
+    log: LogStream
+    """A stream of data to log to $DATA_FD, possibly to the dashboard."""
+
+    given: Given
+    """A stream of data created by calls to :func:`~giving.api.give`."""
+
+    argparser: ExtendedArgumentParser
+    """The argument parser for voir, given before the script."""
+
+    options: Namespace
+    """The parsed arguments."""
+
+    logfile: Union[str, int]
+    """The name of the file to log to, or an integer file descriptor."""
+
     def __init__(self, instruments, logfile=None):
+        """Initialize an Overseer.
+
+        Arguments:
+            instruments: Collection of instruments to require.
+            logfile: Filename to log to, or integer file descriptor.
+        """
         self.argparser = ExtendedArgumentParser()
         self.argparser.add_argument("SCRIPT", nargs="?", help="The script to run")
         self.argparser.add_argument(
@@ -118,16 +161,30 @@ class Overseer(GivenOverseer):
         self.require(*instruments)
         self.logfile = logfile
 
-    def probe(self, selector):
+    def probe(self, selector: str) -> Probe:
         """Create a :class:`ProbeInstrument` on the given selector.
 
         >>> probe = overseer.probe("f > x")
         >>> probe.display()
+
+        Arguments:
+            selector: The selector to probe.
         """
         return self.require(ProbeInstrument(select(selector, skip_frames=1)))
 
-    def run_phase(self, phase):
-        """Run a phase."""
+    def run_phase(self, phase: Phase):
+        """Context manager to run a phase.
+
+        >>> with self.run_phase(self.phases.peanuts):
+        ...     do_stuff()
+
+        The body of the with statement is run, and then all instruments that
+        yielded that phase (in order to wait for its end) are resumed, in
+        priority order.
+
+        Arguments:
+            phase: The phase to run.
+        """
         self.log({"$event": "phase", "$data": {"name": phase.name}})
         return super().run_phase(phase)
 
@@ -153,21 +210,6 @@ class Overseer(GivenOverseer):
         super()._on_overseer_error(e)
 
     def _run(self, argv):
-        """Run the Overseer given the command-line arguments.
-
-        Here is the sequence of phases. Await a phase in an instrument to wait
-        until it is ended:
-
-        * self.phases.init
-            * Set up the logger and self.given
-            * Parse the --config argument
-        * self.phases.parse_args
-            * Parse the command-line arguments
-        * self.phases.load_script
-            * Load the script's imports and functions
-        * self.phases.run_script
-            * Run the script
-        """
         self.log = LogStream()
         self.given.where("$event") >> self.log
         if self.logfile is not None:
