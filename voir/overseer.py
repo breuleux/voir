@@ -5,9 +5,7 @@ import pkgutil
 import sys
 import traceback
 from argparse import REMAINDER
-from importlib.machinery import ModuleSpec
 from pathlib import Path
-from types import ModuleType
 
 import yaml
 from giving import SourceProxy
@@ -18,7 +16,7 @@ from voir.smuggle import SmuggleWriter
 from .argparse_ext import ExtendedArgumentParser
 from .helpers import current_overseer
 from .phase import GivenPhaseRunner
-from .scriptutils import split_script
+from .scriptutils import resolve_script
 
 
 class JsonlFileLogger:
@@ -31,6 +29,7 @@ class JsonlFileLogger:
             False and the file is not writable, this logger will simply forward
             the data to /dev/null instead of raising an OSError.
     """
+
     def __init__(self, filename, require_writable=True):
         self.filename = filename
         if self.filename == 1:
@@ -72,6 +71,7 @@ class LogStream(SourceProxy):
 
     This has the same interface as https://giving.readthedocs.io/en/latest/ref-gvn.html#giving.gvn.Given
     """
+
     def __call__(self, data):
         self._push(data)
 
@@ -85,6 +85,7 @@ class ProbeInstrument:
     >>> probe = overseer.require(ProbeInstrument("f > x"))
     >>> probe.display()
     """
+
     def __init__(self, selector):
         self.selector = selector
         self.probe = self.__state__ = probing(self.selector)
@@ -136,7 +137,7 @@ class Overseer(GivenPhaseRunner):
         super().on_overseer_error(e)
 
     def probe(self, selector):
-        """Create a ProbeInstrument on the given selector.
+        """Create a :class:`ProbeInstrument` on the given selector.
 
         >>> probe = overseer.probe("f > x")
         >>> probe.display()
@@ -184,7 +185,7 @@ class Overseer(GivenPhaseRunner):
             del self.argparser
 
         with self.run_phase(self.phases.load_script):
-            script, argv, func = find_function(self.options)
+            script, argv, func = _resolve_function(self.options)
 
         with self.run_phase(self.phases.run_script) as set_value:
             sys.argv = [script, *argv]
@@ -210,9 +211,13 @@ class Overseer(GivenPhaseRunner):
             current_overseer.reset(token)
 
 
-def find_function(options):
+def _resolve_function(options):
+    """Resolve a function to call given an argparse options object.
+
+    The relevant fields are ``(SCRIPT or MODULE) and ARGV``.
+    """
     if script := options.SCRIPT:
-        return script, options.ARGV, find_script(script)
+        return script, options.ARGV, resolve_script(script)
     elif module_args := options.MODULE:
         module_spec, *argv = module_args
         if ":" in module_spec:
@@ -226,18 +231,6 @@ def find_function(options):
                 script = script.parent / "__main__.py"
                 module_name = f"{module_name}.__main__"
             script = str(script)
-            return script, argv, find_script(script, module_name=module_name)
+            return script, argv, resolve_script(script, module_name=module_name)
     else:
         sys.exit("Either SCRIPT or -m MODULE must be given.")
-
-
-def find_script(script, module_name=None):
-    prep, mainsection = split_script(script)
-    mod = ModuleType("__main__")
-    glb = vars(mod)
-    glb["__file__"] = script
-    if module_name:
-        glb["__spec__"] = ModuleSpec(name=module_name, loader=None)
-    sys.modules["__main__"] = mod
-    exec(prep, glb, glb)
-    return lambda: exec(mainsection, glb, glb)

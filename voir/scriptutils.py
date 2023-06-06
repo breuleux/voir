@@ -1,5 +1,29 @@
 import ast
 import io
+import sys
+from importlib.machinery import ModuleSpec
+from types import ModuleType
+
+
+def resolve_script(script, module_name=None):
+    """
+    Arguments:
+        script: Path to the script.
+        module_name: (optional) The name of the module that the script is supposed to
+            represent.
+
+    Returns:
+        A nullary function that executes the script.
+    """
+    prep, mainsection = split_script(script)
+    mod = ModuleType("__main__")
+    glb = vars(mod)
+    glb["__file__"] = script
+    if module_name:
+        glb["__spec__"] = ModuleSpec(name=module_name, loader=None)
+    sys.modules["__main__"] = mod
+    exec(prep, glb, glb)
+    return lambda: exec(mainsection, glb, glb)
 
 
 def split_script(script):
@@ -12,6 +36,16 @@ def split_script(script):
 
     Code between function definitions will be evaluated right away, but the bulk usually
     comes after these definitions (because they need to use them).
+
+    Arguments:
+        script: Path to the script.
+
+    Returns:
+        A ``(prepare, run)`` tuple such that:
+
+        * ``prepare()`` runs the import statements and function declarations up to the
+          first statement.
+        * ``run()`` runs the rest of the program after that.
     """
 
     with io.open_code(script) as f:
