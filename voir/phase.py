@@ -76,7 +76,7 @@ class PhaseSequence:
         return iter(self._sequence)
 
 
-class PhaseRunner:
+class BaseOverseer:
     """Organizes and runs phases.
 
     Arguments:
@@ -276,7 +276,7 @@ class PhaseRunner:
             self.status = "done"
 
 
-class GivenPhaseRunner(PhaseRunner):
+class GivenOverseer(BaseOverseer):
     """Phase runner that provides an interface to giving.give."""
 
     def __init__(self, phase_names, args=(), kwargs={}):

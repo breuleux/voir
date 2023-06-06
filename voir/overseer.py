@@ -15,7 +15,7 @@ from voir.smuggle import SmuggleWriter
 
 from .argparse_ext import ExtendedArgumentParser
 from .helpers import current_overseer
-from .phase import GivenPhaseRunner
+from .phase import GivenOverseer
 from .scriptutils import resolve_script
 
 
@@ -96,7 +96,7 @@ class ProbeInstrument:
             yield ov.phases.run_script(priority=0)
 
 
-class Overseer(GivenPhaseRunner):
+class Overseer(GivenOverseer):
     def __init__(self, instruments, logfile=None):
         self.argparser = ExtendedArgumentParser()
         self.argparser.add_argument("SCRIPT", nargs="?", help="The script to run")
