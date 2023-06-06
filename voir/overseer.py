@@ -68,11 +68,23 @@ class JsonlFileLogger:
 
 
 class LogStream(SourceProxy):
+    """Callable wrapper over giving.gvn.SourceProxy.
+
+    This has the same interface as https://giving.readthedocs.io/en/latest/ref-gvn.html#giving.gvn.Given
+    """
     def __call__(self, data):
         self._push(data)
 
 
 class ProbeInstrument:
+    """Instrument that creates a ptera.Probe on the given selector.
+
+    The method ``overseer.probe()`` is shorthand for requiring an instance
+    of this class.
+
+    >>> probe = overseer.require(ProbeInstrument("f > x"))
+    >>> probe.display()
+    """
     def __init__(self, selector):
         self.selector = selector
         self.probe = self.__state__ = probing(self.selector)
@@ -124,13 +136,34 @@ class Overseer(GivenPhaseRunner):
         super().on_overseer_error(e)
 
     def probe(self, selector):
+        """Create a ProbeInstrument on the given selector.
+
+        >>> probe = overseer.probe("f > x")
+        >>> probe.display()
+        """
         return self.require(ProbeInstrument(select(selector, skip_frames=1)))
 
     def run_phase(self, phase):
+        """Run a phase."""
         self.log({"$event": "phase", "$data": {"name": phase.name}})
         return super().run_phase(phase)
 
     def run(self, argv):
+        """Run the Overseer given the command-line arguments.
+
+        Here is the sequence of phases. Await a phase in an instrument to wait
+        until it is ended:
+
+        * self.phases.init
+            * Set up the logger and self.given
+            * Parse the --config argument
+        * self.phases.parse_args
+            * Parse the command-line arguments
+        * self.phases.load_script
+            * Load the script's imports and functions
+        * self.phases.run_script
+            * Run the script
+        """
         self.log = LogStream()
         self.given.where("$event") >> self.log
         if self.logfile is not None:
