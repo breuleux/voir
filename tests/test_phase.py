@@ -17,7 +17,7 @@ class LightOverseer(BaseOverseer):
             kwargs={},
         )
 
-    def on_overseer_error(self, err):
+    def _on_overseer_error(self, err):
         if isinstance(err, AssertionError):
             self.stop(err)
         self.error_values.append(err)
@@ -32,7 +32,7 @@ class LightOverseer(BaseOverseer):
                 self.results.append(value)
                 set_value(value)
 
-    def run(self, *values):
+    def _run(self, *values):
         self._run_phase(self.phases.one, values[0])
         self._run_phase(self.phases.two, values[1])
         self._run_phase(self.phases.three, values[2])
@@ -617,7 +617,7 @@ class LightGivenOverseer(GivenOverseer):
                 self.give(value=value)
                 set_value(value)
 
-    def run(self, *values):
+    def _run(self, *values):
         self._run_phase(self.phases.one, values[0])
         self._run_phase(self.phases.two, values[1])
         self._run_phase(self.phases.three, values[2])

@@ -114,7 +114,7 @@ class BaseOverseer:
         for all phases that are already done, and then queued for the next phase
         that is either currently processed or to be processed in the future.
 
-        Any errors in the handler are passed to ``self.on_error``.
+        Any errors in the handler are passed to ``self._on_overseer_error``.
 
         Arguments:
             func: A callable.
@@ -133,10 +133,10 @@ class BaseOverseer:
         try:
             gen = func(*self.handler_args, **self.handler_kwargs)
         except StopProgram as stp:
-            self.on_stop(*stp.args)
+            self._on_stop(*stp.args)
             raise
         except BaseException as exc:
-            self.on_overseer_error(exc)
+            self._on_overseer_error(exc)
             return
 
         if not inspect.isgenerator(gen):
@@ -155,10 +155,10 @@ class BaseOverseer:
     def abort(self, exc):
         raise OverseerAbort(exc)
 
-    def on_overseer_error(self, e):
+    def _on_overseer_error(self, e):
         pass
 
-    def on_stop(self, value):
+    def _on_stop(self, value):
         self.status = "stopped"
         for entries in self.plan.values():
             for _, __, gen, ___ in entries:
@@ -167,7 +167,7 @@ class BaseOverseer:
                 except (StopProgram, StopIteration):
                     pass
                 except BaseException as exc:
-                    self.on_overseer_error(exc)
+                    self._on_overseer_error(exc)
                     pass
 
     def _step(self, entry):
@@ -218,7 +218,7 @@ class BaseOverseer:
         except OverseerAbort as exc:
             raise exc
         except BaseException as exc:
-            self.on_overseer_error(exc)
+            self._on_overseer_error(exc)
             return None, None
         return next_phase, next_priority
 
@@ -258,22 +258,33 @@ class BaseOverseer:
             if exception:
                 raise exception
 
-    def __call__(self, *args, **kwargs):
+    def _prepare(self):
         if self.status != "init":
             raise Exception("Can only enter runner when status == 'init'")
         self.status = "running"
+        for req in self._to_require:
+            self.require(req)
+
+    def _run(self, *args, **kwargs):
+        pass
+
+    def _on_error(self, exc):
+        pass
+
+    def _finish(self):
+        pass
+
+    def __call__(self, *args, **kwargs):
         try:
-            for req in self._to_require:
-                self.require(req)
-            self.run(*args, **kwargs)
+            self._prepare()
+            self._run(*args, **kwargs)
         except StopProgram as stp:
-            self.on_stop(*stp.args)
-            pass
-        except BaseException:
-            self.status = "error"
+            self._on_stop(*stp.args)
+        except BaseException as e:
+            self._on_error(e)
             raise
-        else:
-            self.status = "done"
+        finally:
+            self._finish()
 
 
 class GivenOverseer(BaseOverseer):
@@ -320,8 +331,11 @@ class GivenOverseer(BaseOverseer):
         data["$queued"] = time.time()
         self._queue.put(data)
 
-    def __call__(self, *args, **kwargs):
-        with given() as gv:
-            self.given = gv
-            super().__call__(*args, **kwargs)
-            self._dump_queue()
+    def _prepare(self):
+        super()._prepare()
+        self.given = given().__enter__()
+
+    def _finish(self):
+        self._dump_queue()
+        self.given.__exit__(None, None, None)
+        super()._finish()

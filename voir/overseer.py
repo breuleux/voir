@@ -115,26 +115,8 @@ class Overseer(GivenOverseer):
             args=(self,),
             kwargs={},
         )
-        for instrument in instruments:
-            self.require(instrument)
+        self.require(*instruments)
         self.logfile = logfile
-
-    def on_overseer_error(self, e):
-        self.log(
-            {
-                "$event": "overseer_error",
-                "$data": {"type": type(e).__name__, "message": str(e)},
-            }
-        )
-        print("=" * 80, file=sys.stderr)
-        print(
-            "voir: An error occurred in an overseer. Execution proceeds as normal.",
-            file=sys.stderr,
-        )
-        print("=" * 80, file=sys.stderr)
-        traceback.print_exception(type(e), e, e.__traceback__)
-        print("=" * 80, file=sys.stderr)
-        super().on_overseer_error(e)
 
     def probe(self, selector):
         """Create a :class:`ProbeInstrument` on the given selector.
@@ -149,7 +131,28 @@ class Overseer(GivenOverseer):
         self.log({"$event": "phase", "$data": {"name": phase.name}})
         return super().run_phase(phase)
 
-    def run(self, argv):
+    ####################
+    # Internal methods #
+    ####################
+
+    def _on_overseer_error(self, e):
+        self.log(
+            {
+                "$event": "overseer_error",
+                "$data": {"type": type(e).__name__, "message": str(e)},
+            }
+        )
+        print("=" * 80, file=sys.stderr)
+        print(
+            "voir: An error occurred in an overseer. Execution proceeds as normal.",
+            file=sys.stderr,
+        )
+        print("=" * 80, file=sys.stderr)
+        traceback.print_exception(type(e), e, e.__traceback__)
+        print("=" * 80, file=sys.stderr)
+        super()._on_overseer_error(e)
+
+    def _run(self, argv):
         """Run the Overseer given the command-line arguments.
 
         Here is the sequence of phases. Await a phase in an instrument to wait
@@ -191,24 +194,25 @@ class Overseer(GivenOverseer):
             sys.argv = [script, *argv]
             set_value(func())
 
-    def __call__(self, *args, **kwargs):
-        token = current_overseer.set(self)
-        try:
-            super().__call__(*args, **kwargs)
-        except BaseException as e:
-            self.log(
-                {
-                    "$event": "error",
-                    "$data": {"type": type(e).__name__, "message": str(e)},
-                }
-            )
-            raise
-        finally:
-            with self.run_phase(self.phases.finalize):
-                pass
-            if self._logger:
-                self._logger.close()
-            current_overseer.reset(token)
+    def _prepare(self):
+        super()._prepare()
+        self._token = current_overseer.set(self)
+
+    def _on_error(self, e):
+        self.log(
+            {
+                "$event": "error",
+                "$data": {"type": type(e).__name__, "message": str(e)},
+            }
+        )
+
+    def _finish(self):
+        super()._finish()
+        with self.run_phase(self.phases.finalize):
+            pass
+        if self._logger:
+            self._logger.close()
+        current_overseer.reset(self._token)
 
 
 def _resolve_function(options):
