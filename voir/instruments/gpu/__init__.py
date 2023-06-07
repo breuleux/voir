@@ -139,7 +139,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
                 ],
                 "load": gpu["utilization"]["compute"],
                 "temperature": gpu["temperature"],
-                "power": gpu["power"]
+                "power": gpu["power"],
             }
             for gpu in smi.get_gpus_info().values()
             if str(gpu["device"]) in ours
