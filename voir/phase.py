@@ -1,4 +1,5 @@
 """Phase and generator-based system to run plugins."""
+from __future__ import annotations
 
 import heapq
 import inspect
@@ -26,17 +27,21 @@ class OverseerAbort(BaseException):
 
 
 class Phase:
-    """Phase of a process.
+    """Phase of a process."""
 
-    Attributes:
-        name: Name of the phase.
-        status: Phase status ("pending", "done" or "running")
-        running: Whether the phase is running or not.
-        done: Whether the phase is done or not.
-        value: Result of the phase.
-        exception: If the phase failed, contains the corresponding
-            exception. If the phase succeeded, this is None.
-    """
+    name: str
+    """Name of the phase."""
+
+    status: str
+    """Phase status ("pending", "done" or "running")"""
+
+    value: object
+    """Result of the phase."""
+
+    exception: BaseException
+    """If the phase failed, contains the corresponding exception.
+
+    If the phase succeeded, this is None."""
 
     def __init__(self, name, status="pending"):
         self.name = name
@@ -45,19 +50,33 @@ class Phase:
         self.exception = None
 
     @property
+    def pending(self):
+        """Return whether the phase is pending."""
+        return self.status == "pending"
+
+    @property
     def done(self):
+        """Return whether the phase is done."""
         return self.status == "done"
 
     @property
     def running(self):
+        """Return whether the phase is running."""
         return self.status == "running"
 
-    def __call__(self, priority=0):
+    def __call__(self, priority=0) -> PhaseWithPriority:
+        """Attach a priority when waiting for this phase."""
         return PhaseWithPriority(phase=self, priority=priority)
 
 
 class PhaseWithPriority:
     """Associate a phase to wait for to a priority."""
+
+    phase: Phase
+    """Phase to wait for."""
+
+    priority: int
+    """Priority after the phase is over (higher is run first)."""
 
     def __init__(self, phase, priority):
         self.phase = phase
