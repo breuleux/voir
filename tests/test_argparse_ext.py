@@ -100,11 +100,15 @@ def test_help(configuration, file_regression, capsys):
     with pytest.raises(SystemExit):
         configuration("-h")
 
-    file_regression.check(capsys.readouterr().out)
+    file_regression.check(
+        capsys.readouterr().out.replace("options:", "optional arguments:")
+    )
 
 
 def test_help_with_base(based_configuration, file_regression, capsys):
     with pytest.raises(SystemExit):
         based_configuration("-h")
 
-    file_regression.check(capsys.readouterr().out)
+    file_regression.check(
+        capsys.readouterr().out.replace("options:", "optional arguments:")
+    )
