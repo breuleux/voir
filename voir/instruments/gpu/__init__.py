@@ -4,7 +4,7 @@ import traceback
 
 from ...errors import NotAvailable
 from ...tools import instrument_definition
-from ..utils import Monitor as Monitor2
+from ..utils import Monitor
 
 
 def find_monitors():
@@ -128,7 +128,6 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
     yield ov.phases.load_script
 
     smi = select_backend(arch)
-    ours = _visible_devices(smi)
 
     def monitor():
         data = {
@@ -141,12 +140,11 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
                 "temperature": gpu["temperature"],
                 "power": gpu["power"],
             }
-            for gpu in smi.get_gpus_info().values()
-            if str(gpu["device"]) in ours
+            for gpu in smi.get_gpus_info(_visible_devices(smi)).values()
         }
         ov.give(task="main", gpudata=data)
 
-    monitor_thread = Monitor2(poll_interval, monitor)
+    monitor_thread = Monitor(poll_interval, monitor)
     monitor_thread.start()
     try:
         yield ov.phases.run_script
