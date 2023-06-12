@@ -133,7 +133,7 @@ class BaseOverseer:
         for all phases that are already done, and then queued for the next phase
         that is either currently processed or to be processed in the future.
 
-        Any errors in the handler are passed to ``self._on_overseer_error``.
+        Any errors in the handler are passed to ``self._on_instrument_error``.
 
         Arguments:
             func: A callable.
@@ -155,7 +155,7 @@ class BaseOverseer:
             self._on_stop(*stp.args)
             raise
         except BaseException as exc:
-            self._on_overseer_error(exc)
+            self._on_instrument_error(exc)
             return
 
         if not inspect.isgenerator(gen):
@@ -174,7 +174,7 @@ class BaseOverseer:
     def abort(self, exc):
         raise OverseerAbort(exc)
 
-    def _on_overseer_error(self, e):
+    def _on_instrument_error(self, e):
         pass
 
     def _on_stop(self, value):
@@ -186,7 +186,7 @@ class BaseOverseer:
                 except (StopProgram, StopIteration):
                     pass
                 except BaseException as exc:
-                    self._on_overseer_error(exc)
+                    self._on_instrument_error(exc)
                     pass
 
     def _step(self, entry):
@@ -237,7 +237,7 @@ class BaseOverseer:
         except OverseerAbort as exc:
             raise exc
         except BaseException as exc:
-            self._on_overseer_error(exc)
+            self._on_instrument_error(exc)
             return None, None
         return next_phase, next_priority
 

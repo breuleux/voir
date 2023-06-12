@@ -17,7 +17,7 @@ class LightOverseer(BaseOverseer):
             kwargs={},
         )
 
-    def _on_overseer_error(self, err):
+    def _on_instrument_error(self, err):
         if isinstance(err, AssertionError):
             self.stop(err)
         self.error_values.append(err)

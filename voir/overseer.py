@@ -192,7 +192,7 @@ class Overseer(GivenOverseer):
     # Internal methods #
     ####################
 
-    def _on_overseer_error(self, e):
+    def _on_instrument_error(self, e):
         self.log(
             {
                 "$event": "overseer_error",
@@ -207,7 +207,7 @@ class Overseer(GivenOverseer):
         print("=" * 80, file=sys.stderr)
         traceback.print_exception(type(e), e, e.__traceback__)
         print("=" * 80, file=sys.stderr)
-        super()._on_overseer_error(e)
+        super()._on_instrument_error(e)
 
     def _run(self, argv):
         self.log = LogStream()
