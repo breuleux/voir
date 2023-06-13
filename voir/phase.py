@@ -164,14 +164,42 @@ class BaseOverseer:
         self._step((0, next(_gid), gen, self.phases._boot))
         return state
 
-    def require(self, *funcs):
-        states = [self._require(func) for func in funcs]
+    def require(self, *instruments):
+        """Register instruments.
+
+        Each instrument should be a callable or generator function that takes the
+        overseer ``ov`` as its first argument. If it returns a generator, it must
+        yield phases from ``ov.phases``. The generator is immediately executed
+        for all phases that are already done, and then queued for the next phase
+        that is either currently processed or to be processed in the future.
+
+        Arguments:
+            instruments: Callables or generator functions.
+        """
+        states = [self._require(instrument) for instrument in instruments]
         return states[0] if len(states) == 1 else states
 
-    def stop(self, value=None):
+    def stop(self, value: object = None):
+        """Stop the program.
+
+        This method is meant to be used to stop a program early because e.g. the
+        instrument considers that it has run long enough or that enough data has
+        been collected.
+
+        A :class:`StopProgram` exception is propagated to each instrument, but it
+        is not propagated to the top level.
+
+        Arguments:
+            value: A value to attach to the StopProgram exception.
+        """
         raise StopProgram(value)
 
-    def abort(self, exc):
+    def abort(self, exc: BaseException):
+        """Stop the program by raising an error.
+
+        Arguments:
+            exc: The exception to raise.
+        """
         raise OverseerAbort(exc)
 
     def _on_instrument_error(self, e):
@@ -242,7 +270,7 @@ class BaseOverseer:
         return next_phase, next_priority
 
     @contextmanager
-    def run_phase(self, phase):
+    def run_phase(self, phase: Phase):
         """Run a phase.
 
         Arguments:
@@ -294,6 +322,7 @@ class BaseOverseer:
         pass
 
     def __call__(self, *args, **kwargs):
+        """Execute the program through the overseer."""
         try:
             self._prepare()
             self._run(*args, **kwargs)
@@ -320,6 +349,11 @@ class GivenOverseer(BaseOverseer):
         self._queue_called = False
 
     def give(self, **data):
+        """Push data into the self.given stream.
+
+        This works properly when called from different threads than the main one,
+        by calling ``self.queue`` in that case.
+        """
         if threading.current_thread() is self._thread:
             give(**data)
         else:
