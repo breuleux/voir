@@ -1,3 +1,8 @@
+"""This module defines the Overseer, the main interface that instruments can use.
+
+All instruments receive an :class:`Overseer` as their first argument.
+"""
+
 import importlib
 import json
 import os

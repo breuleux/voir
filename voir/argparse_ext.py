@@ -1,3 +1,10 @@
+"""This module defines an extension to ArgumentParser.
+
+:class:`ExtendedArgumentParser` can be used to add groups of options defined in
+a dataclass, and also provide defaults to them that may come from configuration
+files and the like.
+"""
+
 import ast
 import inspect
 import tokenize
