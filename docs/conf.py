@@ -49,8 +49,8 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
 intersphinx_mapping = {
-    'giving': ('https://giving.readthedocs.io/en/latest', None),
-    'ptera': ('https://ptera.readthedocs.io/en/latest', None),
+    "giving": ("https://giving.readthedocs.io/en/latest", None),
+    "ptera": ("https://ptera.readthedocs.io/en/latest", None),
 }
 
 
