@@ -1,3 +1,5 @@
+"""Display a nice dashboard with logged values."""
+
 from collections import Counter, defaultdict
 
 
@@ -34,7 +36,26 @@ def make_table(rows):
 def dash(ov):
     """Create a simple terminal dashboard using rich.
 
-    This displays a live table of the last value for everything given.
+    * Display a live table of the last value of each key in the
+      :meth:`~voir.overseer.Overseer.log` stream
+      * The ``task`` key is displayed in a separate column.
+      * The ``progress`` key is used to display progress bars.
+    * At the bottom you can see counts for every key in the
+      :meth:`~voir.overseer.Overseer.given` stream.
+      You can forward them to the ``log`` stream if you want to see them.
+
+    Example use:
+
+    .. code-block:: python
+
+        def instrument_xyz(ov):
+            yield ov.phases.init
+
+            # Only the `log` stream is displayed richly.
+            ov.require(log("x", "y", "progress", context=["task"]))
+
+            # Require `dash`, no need to give arguments
+            ov.require(dash)
     """
     from rich.console import Console, Group
     from rich.live import Live

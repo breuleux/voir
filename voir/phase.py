@@ -1,4 +1,9 @@
-"""Phase and generator-based system to run plugins."""
+"""Phase and generator-based system to run plugins.
+
+Overseer is based on functionality in this file.
+"""
+
+from __future__ import annotations
 
 import heapq
 import inspect
@@ -22,21 +27,27 @@ class StopProgram(BaseException):
 
 
 class OverseerAbort(BaseException):
+    """Raise to abort the program."""
+
     pass
 
 
 class Phase:
-    """Phase of a process.
+    """Phase of a process."""
 
-    Attributes:
-        name: Name of the phase.
-        status: Phase status ("pending", "done" or "running")
-        running: Whether the phase is running or not.
-        done: Whether the phase is done or not.
-        value: Result of the phase.
-        exception: If the phase failed, contains the corresponding
-            exception. If the phase succeeded, this is None.
-    """
+    name: str
+    """Name of the phase."""
+
+    status: str
+    """Phase status ("pending", "done" or "running")"""
+
+    value: object
+    """Result of the phase."""
+
+    exception: BaseException
+    """If the phase failed, contains the corresponding exception.
+
+    If the phase succeeded, this is None."""
 
     def __init__(self, name, status="pending"):
         self.name = name
@@ -45,19 +56,33 @@ class Phase:
         self.exception = None
 
     @property
+    def pending(self):
+        """Return whether the phase is pending."""
+        return self.status == "pending"
+
+    @property
     def done(self):
+        """Return whether the phase is done."""
         return self.status == "done"
 
     @property
     def running(self):
+        """Return whether the phase is running."""
         return self.status == "running"
 
-    def __call__(self, priority=0):
+    def __call__(self, priority=0) -> PhaseWithPriority:
+        """Attach a priority when waiting for this phase."""
         return PhaseWithPriority(phase=self, priority=priority)
 
 
 class PhaseWithPriority:
     """Associate a phase to wait for to a priority."""
+
+    phase: Phase
+    """Phase to wait for."""
+
+    priority: int
+    """Priority after the phase is over (higher is run first)."""
 
     def __init__(self, phase, priority):
         self.phase = phase
@@ -76,7 +101,7 @@ class PhaseSequence:
         return iter(self._sequence)
 
 
-class PhaseRunner:
+class BaseOverseer:
     """Organizes and runs phases.
 
     Arguments:
@@ -114,7 +139,7 @@ class PhaseRunner:
         for all phases that are already done, and then queued for the next phase
         that is either currently processed or to be processed in the future.
 
-        Any errors in the handler are passed to ``self.on_error``.
+        Any errors in the handler are passed to ``self._on_instrument_error``.
 
         Arguments:
             func: A callable.
@@ -133,10 +158,10 @@ class PhaseRunner:
         try:
             gen = func(*self.handler_args, **self.handler_kwargs)
         except StopProgram as stp:
-            self.on_stop(*stp.args)
+            self._on_stop(*stp.args)
             raise
         except BaseException as exc:
-            self.on_overseer_error(exc)
+            self._on_instrument_error(exc)
             return
 
         if not inspect.isgenerator(gen):
@@ -145,20 +170,48 @@ class PhaseRunner:
         self._step((0, next(_gid), gen, self.phases._boot))
         return state
 
-    def require(self, *funcs):
-        states = [self._require(func) for func in funcs]
+    def require(self, *instruments):
+        """Register instruments.
+
+        Each instrument should be a callable or generator function that takes the
+        overseer ``ov`` as its first argument. If it returns a generator, it must
+        yield phases from ``ov.phases``. The generator is immediately executed
+        for all phases that are already done, and then queued for the next phase
+        that is either currently processed or to be processed in the future.
+
+        Arguments:
+            instruments: Callables or generator functions.
+        """
+        states = [self._require(instrument) for instrument in instruments]
         return states[0] if len(states) == 1 else states
 
-    def stop(self, value=None):
+    def stop(self, value: object = None):
+        """Stop the program.
+
+        This method is meant to be used to stop a program early because e.g. the
+        instrument considers that it has run long enough or that enough data has
+        been collected.
+
+        A :class:`StopProgram` exception is propagated to each instrument, but it
+        is not propagated to the top level.
+
+        Arguments:
+            value: A value to attach to the StopProgram exception.
+        """
         raise StopProgram(value)
 
-    def abort(self, exc):
+    def abort(self, exc: BaseException):
+        """Stop the program by raising an error.
+
+        Arguments:
+            exc: The exception to raise.
+        """
         raise OverseerAbort(exc)
 
-    def on_overseer_error(self, e):
+    def _on_instrument_error(self, e):
         pass
 
-    def on_stop(self, value):
+    def _on_stop(self, value):
         self.status = "stopped"
         for entries in self.plan.values():
             for _, __, gen, ___ in entries:
@@ -167,7 +220,7 @@ class PhaseRunner:
                 except (StopProgram, StopIteration):
                     pass
                 except BaseException as exc:
-                    self.on_overseer_error(exc)
+                    self._on_instrument_error(exc)
                     pass
 
     def _step(self, entry):
@@ -218,12 +271,12 @@ class PhaseRunner:
         except OverseerAbort as exc:
             raise exc
         except BaseException as exc:
-            self.on_overseer_error(exc)
+            self._on_instrument_error(exc)
             return None, None
         return next_phase, next_priority
 
     @contextmanager
-    def run_phase(self, phase):
+    def run_phase(self, phase: Phase):
         """Run a phase.
 
         Arguments:
@@ -258,25 +311,37 @@ class PhaseRunner:
             if exception:
                 raise exception
 
-    def __call__(self, *args, **kwargs):
+    def _prepare(self):
         if self.status != "init":
             raise Exception("Can only enter runner when status == 'init'")
         self.status = "running"
+        for req in self._to_require:
+            self.require(req)
+
+    def _run(self, *args, **kwargs):
+        pass
+
+    def _on_error(self, exc):
+        pass
+
+    def _finish(self):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        """Execute the program through the overseer."""
         try:
-            for req in self._to_require:
-                self.require(req)
-            self.run(*args, **kwargs)
+            self._prepare()
+            self._run(*args, **kwargs)
         except StopProgram as stp:
-            self.on_stop(*stp.args)
-            pass
-        except BaseException:
-            self.status = "error"
+            self._on_stop(*stp.args)
+        except BaseException as e:
+            self._on_error(e)
             raise
-        else:
-            self.status = "done"
+        finally:
+            self._finish()
 
 
-class GivenPhaseRunner(PhaseRunner):
+class GivenOverseer(BaseOverseer):
     """Phase runner that provides an interface to giving.give."""
 
     def __init__(self, phase_names, args=(), kwargs={}):
@@ -290,6 +355,11 @@ class GivenPhaseRunner(PhaseRunner):
         self._queue_called = False
 
     def give(self, **data):
+        """Push data into the self.given stream.
+
+        This works properly when called from different threads than the main one,
+        by calling ``self.queue`` in that case.
+        """
         if threading.current_thread() is self._thread:
             give(**data)
         else:
@@ -320,8 +390,11 @@ class GivenPhaseRunner(PhaseRunner):
         data["$queued"] = time.time()
         self._queue.put(data)
 
-    def __call__(self, *args, **kwargs):
-        with given() as gv:
-            self.given = gv
-            super().__call__(*args, **kwargs)
-            self._dump_queue()
+    def _prepare(self):
+        super()._prepare()
+        self.given = given().__enter__()
+
+    def _finish(self):
+        self._dump_queue()
+        self.given.__exit__(None, None, None)
+        super()._finish()

@@ -1,3 +1,13 @@
+"""Program runner.
+
+Exports :func:`run(argv, ...)<run>` which can be used to run a program and iterate
+over its stdout, stderr and data.
+
+Exports the :class:`Multiplexer` class which can run multiple programs in parallel
+and yield a unified stream of their stdout, stderr and any data that they generate
+through ``voir``.
+"""
+
 import json
 import os
 import select
@@ -10,7 +20,7 @@ from voir.smuggle import Decoder, MultimodalFile
 
 
 @dataclass
-class Stream:
+class _Stream:
     pipe: object
     info: dict
     deserializer: Callable = None
@@ -18,27 +28,72 @@ class Stream:
 
 @dataclass
 class LogEntry:
+    """An entry yielded by iterating over a :class:`Multiplexer`."""
+
     event: str
+    """Name of the event (e.g. 'start', 'line', 'data', etc)."""
+
     data: object
+    """Data associated to the event."""
+
     pipe: str = None
+    """Pipe on which the event was produced (e.g. 'stdout', 'stderr', 'data')."""
 
     def get(self, item, default):
         return getattr(self, item, default)
 
     def dict(self):
+        """Convert this entry to a plain dictionary."""
         return dict(self.__dict__)
 
     def json(self):
+        """Convert this entry to JSON."""
         return json.dumps(self.__dict__)
 
 
-def run(argv, info, timeout=None, constructor=None, env=os.environ, **options):
+def run(argv, info, timeout=None, constructor=None, env=None, **options):
+    """Run a program.
+
+    The result is a :class:`Multiplexer` that can be iterated over in order to
+    get events corresponding to the start and end of the program as well as its
+    stdout/stderr and data generated via ``voir``.
+
+    Arguments:
+        argv: The list of arguments.
+        info: A dictionary of extra information that will be embedded in the
+            ``LogEntry`` objects that are generated. The class given as the ``constructor``
+            parameter should be able to take this information as keyword arguments
+            in its ``__init__`` function.
+        timeout: Timeout to use when using ``select`` to block on the next input.
+        constructor: The subtype of :class:`LogEntry` to build log entries with.
+            By default it is just ``LogEntry``.
+        env: Environment variables to set.
+        options: Other options to pass to :meth:`Multiplexer.start`.
+
+    Returns:
+        A Multiplexer running that program.
+    """
     mp = Multiplexer(timeout=timeout, constructor=constructor)
     mp.start(argv, info=info, env=env, **options)
     return mp
 
 
 class Multiplexer:
+    """Run multiple programs in parallel and yield a unified stream of events.
+
+    Iterating over a Multiplexer generates a sequence of :class:`LogEntry`:
+
+    * The first event has ``event == "start"``.
+    * Each line on stdout produces ``event == "line" and pipe == "stdout"``
+    * Data logged through Voir produces ``event == "data" and pipe == "data" and data == the_data``.
+    * The last event has ``event == "end"``.
+
+    Arguments:
+        timeout: Timeout to use when using ``select`` to block on the next input.
+        constructor: The subtype of :class:`LogEntry` to build log entries with.
+            By default it is just ``LogEntry``.
+    """
+
     def __init__(self, timeout=0, constructor=None):
         self.processes = {}
         self.blocking = timeout is None
@@ -46,7 +101,27 @@ class Multiplexer:
         self.constructor = constructor or LogEntry
         self.buffer = []
 
-    def start(self, argv, info, env=os.environ, use_stdout=False, **options):
+    def start(self, argv, info, env=None, use_stdout=False, **options):
+        """Start a process from the given ``argv``.
+
+        Arguments:
+            argv: The list of arguments.
+            info: A dictionary of extra information that will be embedded in the
+                ``LogEntry`` objects that are generated. The class given as the ``constructor``
+                parameter should be able to take this information as keyword arguments
+                in its ``__init__`` function.
+            env: Environment variables to set, or None to pass ``os.environ``.
+            use_stdout: If the program we are running is ``voir`` (``argv[0] == "voir"``)
+                and ``use_stdout == True``, the ``DATA_FD`` environment variable will be
+                set to 1, which is stdout. This will cause ``voir`` to smuggle data into
+                the stdout file descriptor, and the Multiplexer will decode it
+                transparently. See :mod:`voir.smuggle`.
+
+        Returns:
+            The subprocess object.
+        """
+        env = os.environ if env is None else env
+
         if use_stdout:
             proc = subprocess.Popen(
                 argv,
@@ -63,9 +138,9 @@ class Multiplexer:
             mdat = MultimodalFile(dec, "data", name=proc.stdout.name)
 
             streams = [
-                Stream(pipe=mout, info={"pipe": "stdout"}, deserializer=None),
-                Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
-                Stream(pipe=mdat, info={"pipe": "data"}, deserializer=json.loads),
+                _Stream(pipe=mout, info={"pipe": "stdout"}, deserializer=None),
+                _Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
+                _Stream(pipe=mdat, info={"pipe": "data"}, deserializer=json.loads),
             ]
 
         else:
@@ -84,9 +159,9 @@ class Multiplexer:
             os.set_blocking(r, False)
 
             streams = [
-                Stream(pipe=proc.stdout, info={"pipe": "stdout"}, deserializer=None),
-                Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
-                Stream(pipe=readdata, info={"pipe": "data"}, deserializer=json.loads),
+                _Stream(pipe=proc.stdout, info={"pipe": "stdout"}, deserializer=None),
+                _Stream(pipe=proc.stderr, info={"pipe": "stderr"}, deserializer=None),
+                _Stream(pipe=readdata, info={"pipe": "data"}, deserializer=json.loads),
             ]
 
         self.add_process(
@@ -109,6 +184,7 @@ class Multiplexer:
         return proc
 
     def add_process(self, *, proc, info, argv, streams):
+        """Add a process to those managed by this Multiplexer."""
         self.processes[proc] = (streams, argv, info)
 
     def _process_line(self, line, s, pinfo):
@@ -150,6 +226,7 @@ class Multiplexer:
             yield self.constructor(event="binary", data=line, **pinfo, **s.info)
 
     def __iter__(self):
+        """Iterate over all the events produced by the Multiplexer's processes."""
         yield from self.buffer
         self.buffer.clear()
 

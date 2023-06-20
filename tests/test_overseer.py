@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from voir.overseer import GiveToFile
+from voir.overseer import JsonlFileLogger
 
 from .common import program
 
@@ -77,15 +77,15 @@ def test_overseer_crash(ov, check_all):
     ov(["--crash", program("collatz"), "-n", "13"])
 
 
-def test_gtf_invalid_fd():
+def test_jsonl_logger_invalid_fd():
     _, w = os.pipe()
     with open(w, "w"):
         pass
     with pytest.raises(OSError):
-        GiveToFile(w)
+        JsonlFileLogger(w)
 
-    gtf = GiveToFile(w, require_writable=False)
-    gtf.log({"a": 1, "b": 2})
+    logger = JsonlFileLogger(w, require_writable=False)
+    logger.log({"a": 1, "b": 2})
 
 
 class Terrible:
@@ -95,9 +95,9 @@ class Terrible:
     __repr__ = __str__
 
 
-def test_gtf_bad_str():
+def test_jsonl_logger_bad_str():
     r, w = os.pipe()
-    gtf = GiveToFile(w)
-    gtf.log({"a": Terrible()})
-    gtf.close()
+    logger = JsonlFileLogger(w)
+    logger.log({"a": Terrible()})
+    logger.close()
     assert open(r, "r").read() == '{"$unrepresentable": null}\n'

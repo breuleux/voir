@@ -1,3 +1,10 @@
+"""This module defines an extension to ArgumentParser.
+
+:class:`ExtendedArgumentParser` can be used to add groups of options defined in
+a dataclass, and also provide defaults to them that may come from configuration
+files and the like.
+"""
+
 import ast
 import inspect
 import tokenize
@@ -33,6 +40,17 @@ def _dash(base):
 
 @ovld
 def contribute(default: meta(is_dataclass), info: Info):
+    """Populate info.parser based on the default given.
+
+    If there is no default value for the argument, ``default`` takes the value
+    ``MISSING``.
+
+    The :class:`Info` object already contains the name of the field, as well as its
+    type, help string, etc. Depending on the type of the argument, an argument or
+    a subparser will be added to ``info.parser``.
+    """
+    # NOTE: This function is called using ``contribute[argtype, Info](...)`` which
+    # dispatches to the relevant version of ``contribute`` thanks to ``ovld``.
     group = info.parser
     hlp = getattr(info.type, "__help__", None) or info.type.__name__
     if hlp:
@@ -114,6 +132,12 @@ def _expand(args, constructors):
 
 
 class ExtendedArgumentParser(ArgumentParser):
+    """Argument parser that supports adding option groups as dataclasses.
+
+    Works just like :class:`argparse.ArgumentParser`, plus the method
+    :meth:`~ExtendedArgumentParser.add_from_model`.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.constructors = {}
@@ -121,14 +145,63 @@ class ExtendedArgumentParser(ArgumentParser):
         self.base_configs_locked = False
         self.used_base_configs = set()
 
-    def merge_base_config(self, config):
+    def merge_base_config(self, config: dict):
+        """Merge default values for the configurations.
+
+        This method must be called **before** ``add_from_model(...)``.
+
+        Call this if e.g. you want to import the settings from a configuration file
+        as if they had been given as command-line arguments. You can call this method
+        multiple times if you have multiple sources of data. You do not need to set
+        every option.
+
+        Options provided on the command line will always override what
+        is set through this method.
+
+        (The reason ``merge_base_config`` must be called before ``add_from_model``
+        is that it may modulate the command-line options, e.g. which ones are optional
+        and which ones are required.)
+
+        Arguments:
+            config: A dictionary that contains default values for the options
+                that will be contributed by ``add_from_model``.
+        """
         if self.base_configs_locked:
             raise Exception(
                 "Cannot merge a base config after add_from_model is called."
             )
         self.base_configs = OmegaConf.merge(self.base_configs, config)
 
-    def add_from_model(self, dest, model, flatten=True):
+    def add_from_model(self, dest: str, model: type, flatten: bool = True):
+        """Add the attributes of the ``model`` dataclass as options.
+
+        If, for example, we have this dataclass:
+
+        .. code-block:: python
+
+            @dataclass
+            class Options:
+                # Some number
+                abc: int
+                # A flag
+                xyz: bool = False
+
+        * ``add_from_model("opts", Options)`` will add ``--abc`` and ``--xyz``
+          to the argument parser, using the comments as their documentation,
+          and the values will be in ``args.opts.abc`` etc.
+        * ``add_from_model("opts", Options, flatten=False)`` will add ``--opts.abc``
+          and ``--opts.xyz`` (putting the values in the same place).
+        * ``--abc`` will be required, ``--xyz`` will be optional because it has
+          a default value.
+
+        Arguments:
+            dest: The destination key in the arguments Namespace returned by
+                ``parse_args``.
+            model: A dataclass.
+            flatten: If True, the arguments declared in the dataclass will be
+                available at the top level. Otherwise, they will have to be
+                given as ``--dest-xyz``.
+        """
         self.base_configs_locked = True
 
         if isinstance(model, type):

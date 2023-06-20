@@ -1,3 +1,9 @@
+"""Standard instruments.
+
+Instruments can be imported directly from ``voir.instruments``, but they are
+defined in their own files that are imported lazily.
+"""
+
 # We import the instruments lazily
 _instruments = {
     "log": "from .log import log",

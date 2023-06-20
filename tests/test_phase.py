@@ -3,10 +3,10 @@ import threading
 import pytest
 from giving import give
 
-from voir.phase import GivenPhaseRunner, PhaseRunner, StopProgram
+from voir.phase import BaseOverseer, GivenOverseer, StopProgram
 
 
-class LightOverseer(PhaseRunner):
+class LightOverseer(BaseOverseer):
     def __init__(self):
         self.results = []
         self.errors = []
@@ -17,7 +17,7 @@ class LightOverseer(PhaseRunner):
             kwargs={},
         )
 
-    def on_overseer_error(self, err):
+    def _on_instrument_error(self, err):
         if isinstance(err, AssertionError):
             self.stop(err)
         self.error_values.append(err)
@@ -32,7 +32,7 @@ class LightOverseer(PhaseRunner):
                 self.results.append(value)
                 set_value(value)
 
-    def run(self, *values):
+    def _run(self, *values):
         self._run_phase(self.phases.one, values[0])
         self._run_phase(self.phases.two, values[1])
         self._run_phase(self.phases.three, values[2])
@@ -598,7 +598,7 @@ def test_rerun(ov):
         ov(1, 2, 3, 4)
 
 
-class LightGivenOverseer(GivenPhaseRunner):
+class LightGivenOverseer(GivenOverseer):
     def __init__(self):
         self.errors = []
         self.error_values = []
@@ -617,7 +617,7 @@ class LightGivenOverseer(GivenPhaseRunner):
                 self.give(value=value)
                 set_value(value)
 
-    def run(self, *values):
+    def _run(self, *values):
         self._run_phase(self.phases.one, values[0])
         self._run_phase(self.phases.two, values[1])
         self._run_phase(self.phases.three, values[2])
