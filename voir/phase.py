@@ -1,4 +1,8 @@
-"""Phase and generator-based system to run plugins."""
+"""Phase and generator-based system to run plugins.
+
+Overseer is based on functionality in this file.
+"""
+
 from __future__ import annotations
 
 import heapq
@@ -23,6 +27,8 @@ class StopProgram(BaseException):
 
 
 class OverseerAbort(BaseException):
+    """Raise to abort the program."""
+
     pass
 
 
