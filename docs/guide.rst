@@ -2,6 +2,23 @@
 Guide
 =====
 
+Set up
+~~~~~~
+
+``voir`` works like a replacement to the ``python`` command, meaning that if you have, say, a script named ``script.py``, you can invoke it using ``voir script.py`` (or ``python -m voir script.py``). If you want to invoke a module, use ``voir -m module``.
+
+If there is a ``voirfile.py`` in the script's directory, instruments defined in that file will be activated and will oversee the running of the script.
+
+If you want to run an existing script, there is mostly nothing to adjust. Only if you want to make data available to instruments you will need to call :func:`give(key=value)<giving.api.give>` in the script.
+
+
+.. note::
+    There is a powerful way to interact with data in ``voir``, which is the :meth:`~voir.overseer.Overseer.given` stream. This stream is equivalent to :func:`giving.api.given`. If you read the giving_ documentation, keep in mind that ``gvn = ov.given`` is more or less the same as ``with given() as gvn: ...``
+
+
+.. _giving: https://giving.readthedocs.io/en/latest
+
+
 Phases
 ~~~~~~
 
@@ -70,3 +87,15 @@ The ``--time`` argument goes BEFORE the script, so you would invoke it like this
 .. code-block:: bash
 
     voir --time script.py SCRIPT_ARGUMENTS ...
+
+
+Standard instruments
+~~~~~~~~~~~~~~~~~~~~
+
+Voir comes with a few standard instruments that can make your life easier:
+
+* :func:`voir.instruments.log`
+* :func:`voir.instruments.dash`
+* :func:`voir.instruments.gpu_monitor`
+* :func:`voir.instruments.rate`
+* :func:`voir.instruments.early_stop`
