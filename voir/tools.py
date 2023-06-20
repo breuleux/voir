@@ -110,6 +110,7 @@ def instrument_definition(fn):
             the other arguments.
     """
 
+    @functools.wraps(fn)
     def wrapped(*args, **kwargs):
         def instrument(ov):
             yield from fn(ov, *args, **kwargs)

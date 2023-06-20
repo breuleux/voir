@@ -1,3 +1,5 @@
+"""Monitor GPU usage."""
+
 import glob
 import os
 import traceback
@@ -55,6 +57,10 @@ def _is_backend_available(backend):
 
 
 def deduce_backend():
+    """List the GPU backend that is available on this machine.
+
+    If multiple backends are available, raises an error.
+    """
     suitable = []
     for k, backend in BACKENDS.items():
         if backend.is_installed() and _is_backend_available(backend):
@@ -125,6 +131,34 @@ def _visible_devices(smi):
 
 @instrument_definition
 def gpu_monitor(ov, poll_interval=10, arch=None):
+    """Monitor GPU utilization.
+
+    Supports monitoring CUDA (NVIDIA) and ROCm (AMD) architectures.
+
+    The following data is monitored:
+
+    .. code-block:: javascript
+
+        {
+            "memory": [USED, TOTAL],  // In MB
+            "load": LOAD,             // Utilization, from 0 to 1
+            "temperature": TEMP,      // In celsius
+            "power": POWER,
+        }
+
+    This data structure is added to the :meth:`~voir.overseer.Overseer.given` stream
+    as follows:
+
+    .. code-block:: python
+
+        give(task="main", gpudata=DATA)
+
+    Arguments:
+        poll_interval: The polling interval, in seconds. Data will be produced
+            every poll_interval seconds.
+        arch: The GPU architecture to monitor. If None, the architecture will be
+            deduced automatically.
+    """
     yield ov.phases.load_script
 
     smi = select_backend(arch)
