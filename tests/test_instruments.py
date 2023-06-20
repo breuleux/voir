@@ -2,8 +2,12 @@ import time
 
 import pytest
 
-from voir.errors import NotAvailable
-from voir.instruments.gpu import get_backends, get_gpu_info, select_backend
+from voir.instruments.gpu import (
+    NotAvailable,
+    get_backends,
+    get_gpu_info,
+    select_backend,
+)
 from voir.instruments.metric import rate
 
 from .common import program

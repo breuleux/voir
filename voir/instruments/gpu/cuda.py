@@ -1,6 +1,6 @@
 import os
 
-from ...errors import NotAvailable
+from .common import NotAvailable
 
 IMPORT_ERROR = None
 try:

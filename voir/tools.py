@@ -109,6 +109,7 @@ def instrument_definition(fn):
         fn: The parametrized function. Its first argument, ov, will be given after
             the other arguments.
     """
+
     def wrapped(*args, **kwargs):
         def instrument(ov):
             yield from fn(ov, *args, **kwargs)

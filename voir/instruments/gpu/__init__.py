@@ -2,9 +2,9 @@ import glob
 import os
 import traceback
 
-from ...errors import NotAvailable
 from ...tools import instrument_definition
 from ..utils import Monitor
+from .common import NotAvailable
 
 
 def find_monitors():
@@ -18,7 +18,7 @@ def find_monitors():
     for module_path in glob.glob(pattern, recursive=False):
         module_file = module_path.split(os.sep)[-1]
 
-        if module_file == "__init__.py":
+        if module_file in ("__init__.py", "common.py"):
             continue
 
         module_name = module_file.split(".py")[0]
