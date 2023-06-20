@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 
 from voir.proc import LogEntry, run
-from voir.smuggle import encode_control
+from voir.smuggle import encode_as_escape_sequence
 
 
 @dataclass
@@ -30,7 +30,12 @@ def test_run():
 def test_run_stdout():
     secret = {"sekret": True}
     results = run(
-        ["echo", "hello", encode_control(f"{json.dumps(secret)}\n"), "world"],
+        [
+            "echo",
+            "hello",
+            encode_as_escape_sequence(f"{json.dumps(secret)}\n"),
+            "world",
+        ],
         timeout=None,
         info={"index": 1},
         constructor=LogWithIndex,
