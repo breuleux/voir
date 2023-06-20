@@ -1,3 +1,5 @@
+"""Command-line interface."""
+
 import os
 import sys
 
@@ -8,6 +10,10 @@ from .run import collect_instruments, find_voirfiles
 
 
 def collect_contrib_instruments():
+    """Collect instruments declared as entry points.
+
+    This isn't really used, currently.
+    """
     results = []
     for entry_point in pkg_resources.iter_entry_points("voir.instrument"):
         results.append(entry_point.load())
@@ -15,6 +21,7 @@ def collect_contrib_instruments():
 
 
 def main(argv=None):
+    """Entry point of the voir command line interface."""
     sys.path.insert(0, os.path.abspath(os.curdir))
 
     vfs = os.environ.get("VOIRFILE", None)

@@ -1,3 +1,9 @@
+"""Utilities to split a script in a prelude and main part.
+
+See :func:`split_script` for a more thorough description of what we are trying
+to do here.
+"""
+
 import ast
 import io
 import sys
@@ -6,7 +12,12 @@ from types import ModuleType
 
 
 def resolve_script(script, module_name=None):
-    """
+    """Return a function that calculates the main body of the script.
+
+    Imports and functions are exec()ed by ``resolve_script``. Only the main body is
+    not executed. The separation of the script in two parts is done via
+    :func:`split_script`.
+
     Arguments:
         script: Path to the script.
         module_name: (optional) The name of the module that the script is supposed to
