@@ -244,7 +244,15 @@ class ExtendedArgumentParser(ArgumentParser):
 #############################
 
 
-def scrape_comments(src):
+def scrape_comments(src: str):
+    """Use the tokenizer module to fetch comments from source.
+
+    Arguments:
+        src: The source code.
+
+    Returns:
+        List of (line, column, "COMMENT", comment_string)
+    """
     lines = bytes(src, encoding="utf8").splitlines(keepends=True)
     return [
         (*tok.start, "COMMENT", tok.string[1:].strip())
@@ -254,6 +262,8 @@ def scrape_comments(src):
 
 
 class AttributeVisitor(ast.NodeVisitor):
+    """Walk an AST to gather variable and docstring tokens and their lines/columns."""
+
     def __init__(self):
         self.data = []
         self.prefix = None
@@ -304,20 +314,39 @@ class AttributeVisitor(ast.NodeVisitor):
         super().generic_visit(node)
 
 
-def scrape_docstrings(src):
+def scrape_variables_and_docstrings(src: str):
+    """Scrape the variables and docstrings from source code.
+
+    Arguments:
+        src: The source code.
+
+    Returns:
+        List of (line, column, "VARIABLE"|"DOC"|"OTHER", name_or_content)
+    """
     visitor = AttributeVisitor()
     visitor.visit(ast.parse(src))
     return visitor.data
 
 
 def get_attribute_docstrings(cls):
+    """Get the docstrings for individual attributes of a class.
+
+    Arguments:
+        cls: The class for which we want to get attribute documentation.
+
+    Returns:
+        A dict from variable name to its associated docstring (after itself) and/or
+        comment (above itself).
+    """
     docs = {}
     current = None
     current_line = None
     for_next = []
     src = dedent(inspect.getsource(cls))
-    data = scrape_comments(src) + scrape_docstrings(src)
-    for line, _, kind, content in sorted(data):
+    # We concatenate comment tokens from the tokenizer with
+    # variable/docstring tokens extracted using the ast module
+    data = sorted(scrape_comments(src) + scrape_variables_and_docstrings(src))
+    for line, _, kind, content in data:
         if kind == "COMMENT":
             if current is not None and current_line == line:
                 docs[current].append(content)
