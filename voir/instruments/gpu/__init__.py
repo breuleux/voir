@@ -2,6 +2,7 @@
 
 import glob
 import os
+import time
 import traceback
 
 from ...tools import instrument_definition
@@ -165,6 +166,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
 
     def monitor():
         data = {
+            "t": time.time(),
             gpu["device"]: {
                 "memory": [
                     gpu["memory"]["used"],
