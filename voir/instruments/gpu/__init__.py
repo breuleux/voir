@@ -166,7 +166,6 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
 
     def monitor():
         data = {
-            "t": time.time(),
             gpu["device"]: {
                 "memory": [
                     gpu["memory"]["used"],
@@ -178,6 +177,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
             }
             for gpu in smi.get_gpus_info(_visible_devices(smi)).values()
         }
+        data["t"] = time.time()
         ov.give(task="main", gpudata=data)
 
     monitor_thread = Monitor(poll_interval, monitor)
