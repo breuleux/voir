@@ -177,8 +177,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
             }
             for gpu in smi.get_gpus_info(_visible_devices(smi)).values()
         }
-        data["t"] = time.time()
-        ov.give(task="main", gpudata=data)
+        ov.give(task="main", gpudata=data, t=time.time())
 
     monitor_thread = Monitor(poll_interval, monitor)
     monitor_thread.start()
