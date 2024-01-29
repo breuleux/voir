@@ -84,7 +84,7 @@ def select_backend(arch=None):
     global DEVICESMI
 
     if DEVICESMI is not None:
-        if DEVICESMI.arch == arch:
+        if arch is None or DEVICESMI.arch == arch:
             return DEVICESMI
         DEVICESMI.close()
         DEVICESMI = None
