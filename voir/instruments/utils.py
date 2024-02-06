@@ -92,6 +92,19 @@ class _Monitor:
 def monitor(delay, getfun, pushfun, process=True):
     """Run the monitor in a different process to have metrics in regular intervals
     Pusher is a thread that gets executed when there is time.
+
+    delay: float
+        sleep time between observation
+    
+    getfun: () -> dict
+        function used to retrieve metrics about the system
+    
+    pushfun: (dict) -> None
+        function used on the main process once matrics are received.
+        It can be used to save/display the data
+
+    process: bool
+        If true it will instantiate a new process for the monitoring
     """
     if process:
         m = []
@@ -99,9 +112,7 @@ def monitor(delay, getfun, pushfun, process=True):
         # Note: monitor needs to be first, so it stops generating observation first
         monitor = ProcessMonitor(delay, getfun)
         m.append(monitor)
-        if pushfun is not None:
-            m.append(ProcessPusher(delay, monitor.results, pushfun))
-
+        m.append(ProcessPusher(delay, monitor.results, pushfun))
         return _Monitor(*m)
 
     def fun():
