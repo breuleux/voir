@@ -104,7 +104,6 @@ def monitor(delay, getfun, pushfun, process=True):
 
         return _Monitor(*m)
 
-    #
     def fun():
         pushfun(getfun())
 
