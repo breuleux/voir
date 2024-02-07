@@ -95,10 +95,10 @@ def monitor(delay, getfun, pushfun, process=True):
 
     delay: float
         sleep time between observation
-    
+
     getfun: () -> dict
         function used to retrieve metrics about the system
-    
+
     pushfun: (dict) -> None
         function used on the main process once matrics are received.
         It can be used to save/display the data
