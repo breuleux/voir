@@ -80,11 +80,11 @@ def deduce_backend():
     return suitable[0]
 
 
-def select_backend(arch=None):
+def select_backend(arch=None, force=False):
     global DEVICESMI
 
     if DEVICESMI is not None:
-        if arch is None or DEVICESMI.arch == arch:
+        if not force and (arch is None or DEVICESMI.arch == arch):
             return DEVICESMI
         DEVICESMI.close()
         DEVICESMI = None
@@ -130,8 +130,7 @@ def _visible_devices(smi):
     return ours
 
 
-@instrument_definition
-def gpu_monitor(ov, poll_interval=10, arch=None):
+def gpu_monitor(arch):
     """Monitor GPU utilization.
 
     Supports monitoring CUDA (NVIDIA) and ROCm (AMD) architectures.
@@ -160,12 +159,8 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
         arch: The GPU architecture to monitor. If None, the architecture will be
             deduced automatically.
     """
-    yield ov.phases.load_script
-
-    smi = select_backend(arch)
-
     def monitor():
-        data = {
+        return {
             gpu["device"]: {
                 "memory": [
                     gpu["memory"]["used"],
@@ -175,14 +170,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
                 "temperature": gpu["temperature"],
                 "power": gpu["power"],
             }
-            for gpu in smi.get_gpus_info(_visible_devices(smi)).values()
+            for gpu in DEVICESMI.get_gpus_info(_visible_devices(DEVICESMI)).values()
         }
-        ov.give(task="main", gpudata=data, time=time.time())
 
-    monitor_thread = Monitor(poll_interval, monitor)
-    monitor_thread.start()
-    try:
-        yield ov.phases.run_script
-    finally:
-        monitor_thread.stop()
-        monitor()
+    return monitor

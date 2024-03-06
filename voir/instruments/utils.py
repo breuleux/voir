@@ -23,7 +23,10 @@ class Monitor(Thread):
         self.stopped = True
 
 
-def _worker(state, queue, func, delay):
+def _worker(state, queue, func, delay, init=None):
+    if init is not None:
+        init()
+
     while state["running"]:
         queue.put(func())
         time.sleep(delay)
@@ -35,14 +38,14 @@ class ProcessMonitor:
     helps.
     """
 
-    def __init__(self, delay, func):
+    def __init__(self, delay, func, worker_init=None):
         self.manager = multiprocessing.Manager()
         self.state = self.manager.dict()
         self.state["running"] = True
         self.results = multiprocessing.Queue()
         self.process = multiprocessing.Process(
             target=_worker,
-            args=(self.state, self.results, func, delay),
+            args=(self.state, self.results, func, delay, worker_init),
         )
 
     def start(self):
@@ -89,7 +92,7 @@ class _Monitor:
             a.stop()
 
 
-def monitor(delay, getfun, pushfun, process=True):
+def monitor(delay, getfun, pushfun, process=True, worker_init=None):
     """Run the monitor in a different process to have metrics in regular intervals
     Pusher is a thread that gets executed when there is time.
 
@@ -110,7 +113,7 @@ def monitor(delay, getfun, pushfun, process=True):
         m = []
 
         # Note: monitor needs to be first, so it stops generating observation first
-        monitor = ProcessMonitor(delay, getfun)
+        monitor = ProcessMonitor(delay, getfun, worker_init)
         m.append(monitor)
         m.append(ProcessPusher(delay, monitor.results, pushfun))
         return _Monitor(*m)
