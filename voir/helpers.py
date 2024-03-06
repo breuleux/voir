@@ -152,3 +152,39 @@ def iterate(
             except StopIteration:
                 break
             prog(i)
+
+
+
+def simple_():
+    assert isinstance(task, str)
+    
+    def deduce_size(batch):
+        return len(batch)
+    
+    try:
+        n = len(iterable)
+    except TypeError:
+        n = None
+
+    def prog(i):
+        if n is not None:
+            give(progress=(i, n))
+
+    it = iter(iterable)
+    while True:
+        if i == n:
+            break
+        i += 1
+
+        try:
+            batch = next(it)
+            
+            give(batch_size=len(batch))
+            
+            yield batch
+        except StopIteration:
+            break
+        
+        # new progress
+        prog(i)
+    

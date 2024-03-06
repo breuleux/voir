@@ -7,6 +7,7 @@ import traceback
 import time
 import cloudpickle
 from contextlib import contextmanager
+import sys
 
 from giving import Giver
 from giving.api import giver
@@ -15,29 +16,32 @@ from .overseer import SyncOverseer
 from .phase import StopProgram, Phase, OverseerAbort
 
 
-def _test_stuff(*args):
-    print(args)
-
-
 SHR_ON = 1
 
 def _worker(in_queue, out_queue, shared_state, cls, cls_args):
     shared_state[SHR_ON] = 1
-    
+    def newreply(r):
+        out_queue.put(cloudpickle.dumps(r))
+        
     with cls(*cls_args) as handler:
         while shared_state[SHR_ON]:
             try:
                 payload = in_queue.get(True, timeout=0.01)
-                funame, args, kwargs = cloudpickle.loads(payload)
+                funame, reply, args, kwargs = cloudpickle.loads(payload)
                 
-                print("fname:", funame, args, kwargs)
                 if hasattr(handler, funame):
                     r = getattr(handler, funame)(*args, **kwargs)
-                    if r is not None:
-                        out_queue.put(r)
                     
-                if funame == "barrier":
-                    out_queue.put("done")
+                    if reply:
+                        newreply(r)
+                    
+                    continue
+                    
+                if funame == "#barrier":
+                    newreply("done")
+                    continue
+                
+                print(funame, "not found")
 
             except Empty:
                 continue
@@ -86,12 +90,12 @@ class ProcWorker:
             if timeout is not None and (time.time() - s > timeout):
                 raise TimeoutError()
             
-    def send(self, fun_name, *args, **kwargs):
-        payload = cloudpickle.dumps((fun_name, args, kwargs))
+    def send(self, fun_name, *args, reply=False, **kwargs):
+        payload = cloudpickle.dumps((fun_name, reply, args, kwargs))
         self.in_queue.put(payload)
         
     def barrier(self):
-        self.send("barrier")
+        self.send("#barrier")
         _ = self.wait_output()
         return
     
@@ -111,7 +115,7 @@ class ProcWorker:
                 raise TimeoutError()
             
             try:
-                return self.out_queue.get_nowait()
+                return cloudpickle.loads(self.out_queue.get_nowait())
             except Empty:
                 continue
 
@@ -134,6 +138,7 @@ class _FakeGiven:
 
 class _Wrapped(SyncOverseer):
     def __init__(self, instruments, logfile=None):
+        self.options = None
         super().__init__(instruments, logfile)
     
     def __enter__(self):
@@ -147,6 +152,13 @@ class _Wrapped(SyncOverseer):
         
     def giver_call(self, *args, **values):
         giver()(*args, **values)
+    
+    def write(self, data):
+        print(data, end="")
+        
+    def remote_log(self, *args):
+        return self.log(*args)
+
 
 class AsyncGiver(Giver):
     def __init__(self, remote_worker, *args, **kwargs):
@@ -158,19 +170,43 @@ class AsyncGiver(Giver):
         
     def __call__(self, *args, **values):
         self.remote_worker.send("giver_call", *args, **values)
+        
+
+class _OutForward:
+    def __init__(self, remote) -> None:
+        self.remote = remote
+
+    def write(self, data):
+        self.remote.send("write", data)
+        
+    def flush(self):
+        pass
+
 
 class AsyncOverseer(SyncOverseer):
+    def _prepare_log(self):
+        self.remote.send("_prepare_log")
+        
     def require(self, *instruments):
-        self.remote.send("required", *instruments)
+        self.remote.send("require", *instruments)
         self.remote.barrier()
+        
+    def initialize_observer_parser(self, argv):
+        self.remote.send("initialize_observer_parser", argv, reply=True)
+        self.argparser, argv = self.remote.wait_output()
+        return argv
         
     def advance_observers(self, phase):
         self.remote.send("advance_observers", phase)
         self.remote.barrier()
         
-    def _add_prepare_observer(self):
-        self.remote.send("_add_prepare_observer")
-        self.remote.barrier()
+    def set_options(self, options):
+        self.remote.send("set_options", options)
+        return super().set_options(options)
+         
+    def set_status(self, newstatus):
+        self.status = newstatus
+        self.remote.send("set_status", newstatus)
         
     def produce(self, values):
         self.remote.send("produce", values)
@@ -180,7 +216,11 @@ class AsyncOverseer(SyncOverseer):
         
     def _step(self, entry):
         raise NotImplementedError()
-        
+    
+    def _prepare(self):
+        self.remote.send("_prepare")
+        return super()._prepare()
+    
     def __init__(self, instruments, logfile=None):
         self.remote = ProcWorker(
             _Wrapped,
@@ -188,6 +228,8 @@ class AsyncOverseer(SyncOverseer):
             20
         ).__enter__()
         
+        self.stdout = sys.stdout
+        sys.stdout = _OutForward(self.remote)
         self._logger = False
         self.given = _FakeGiven()
         
@@ -207,11 +249,16 @@ class AsyncOverseer(SyncOverseer):
         super().__init__(instruments, logfile)
     
     def log(self, *args):
-        print("LOG", args)
+        self.remote.send("remote_log", *args)
         
     def _finish(self):
+        self.remote.send("_finish")
         super()._finish()
         self.remote.__exit__(None, None, None)
+        sys.stdout = self.stdout
+
+
+
 
 # class Overseer:
 #     "init"

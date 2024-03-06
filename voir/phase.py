@@ -145,7 +145,7 @@ class BaseOverseer:
             func: A callable.
         """
         state = getattr(func, "__state__", func)
-
+        
         if self.status == "init":
             self._to_require.append(func)
             return state
@@ -212,7 +212,7 @@ class BaseOverseer:
         pass
 
     def _on_stop(self, value):
-        self.status = "stopped"
+        self.set_status("stopped")
         for entries in self.plan.values():
             for _, __, gen, ___ in entries:
                 try:
@@ -236,7 +236,7 @@ class BaseOverseer:
                 return
             elif not next_phase.done:
                 break
-        heapq.heappush(self.plan[next_phase], (-next_priority, gid, gen, next_phase))
+        heapq.heappush(self.plan[next_phase.name], (-next_priority, gid, gen, next_phase))
 
     def _step_one(self, gen, ph):
         """Run one step of the generator using the given phase.
@@ -308,6 +308,7 @@ class BaseOverseer:
 
     def advance_observers(self, phase):
         entries = self.plan[phase.name]
+
         while entries:
             # Note: existing coroutines can call require() to add new entries,
             # so the heap can become larger from an iteration to the next.
@@ -317,8 +318,11 @@ class BaseOverseer:
     def _prepare(self):
         if self.status != "init":
             raise Exception("Can only enter runner when status == 'init'")
-        self.status = "running"
+        self.set_status("running")
         self._add_prepare_observer()
+        
+    def set_status(self, newstatus):
+        self.status = newstatus
             
     def _add_prepare_observer(self):
         for req in self._to_require:
