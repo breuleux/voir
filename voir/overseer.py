@@ -102,7 +102,7 @@ class ProbeInstrument:
             yield ov.phases.run_script(priority=0)
 
 
-class Overseer(GivenOverseer):
+class SyncOverseer(GivenOverseer):
     """Oversee the running of a script and schedule instruments.
 
     When called with command-line arguments, the Overseer will parse instrument
@@ -215,13 +215,13 @@ class Overseer(GivenOverseer):
         super()._on_instrument_error(e)
 
     def _run(self, argv):
-        self.log = LogStream()
-        self.given.where("$event") >> self.log
-        if self.logfile is not None:
-            self._logger = JsonlFileLogger(self.logfile, require_writable=False)
-            self.log >> self._logger.log
-        else:
-            self._logger = None
+        # self.log = LogStream()
+        # self.given.where("$event") >> self.log
+        # if self.logfile is not None:
+        #     self._logger = JsonlFileLogger(self.logfile, require_writable=False)
+        #     self.log >> self._logger.log
+        # else:
+        #     self._logger = None
 
         with self.run_phase(self.phases.init):
             tmp_argparser = ExtendedArgumentParser(add_help=False)
@@ -276,8 +276,16 @@ def _resolve_function(options):
             module = importlib.import_module(module_name)
             return module_spec, argv, getattr(module, field)
         else:
+            from importlib.util import find_spec
             module_name = module_spec
+            
+            module_spec = find_spec(module_name)
+            script_new = Path(module_spec.origin)
+            
             script = Path(pkgutil.get_loader(module_name).get_filename())
+            
+            assert script_new == script
+            
             if script.name == "__init__.py":
                 script = script.parent / "__main__.py"
                 module_name = f"{module_name}.__main__"

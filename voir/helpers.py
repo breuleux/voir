@@ -6,7 +6,7 @@ a script run through Voir.
 
 from contextvars import ContextVar
 
-from giving import give
+from giving import give, giver
 
 current_overseer = ContextVar("current_overseer", default=None)
 
@@ -115,7 +115,7 @@ def iterate(
             give(progress=(i, n))
 
     i = 0
-    with give.inherit(task=task):
+    with giver().inherit(task=task):
         prog(0)
         it = iter(iterable)
         while True:
@@ -139,13 +139,13 @@ def iterate(
                     yield batch
                 elif ignore_loading:
                     batch, kwargs = get_batch()
-                    with give.wrap("step", **kwargs):
+                    with giver().wrap("step", **kwargs):
                         yield batch
                 else:
                     empty_kwargs = (
                         {"batch": None} if batch_size is None else {"batch_size": None}
                     )
-                    with give.wrap("step", **empty_kwargs) as extra:
+                    with giver().wrap("step", **empty_kwargs) as extra:
                         batch, kwargs = get_batch()
                         extra.update(kwargs)
                         yield batch

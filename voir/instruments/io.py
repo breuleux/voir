@@ -3,12 +3,12 @@
 import psutil
 
 
-def io_monitor():
+def io_monitor(perdisk=False):
     def monitor():
-        iocounters = psutil.disk_io_counters()
-
-        return {
-            str(k): {
+        iocounters = psutil.disk_io_counters(perdisk=perdisk)
+        
+        def diskinfo(diskio):
+            return {
                 "read_count": diskio.read_count,
                 "write_count": diskio.write_count,
                 "read_bytes": diskio.read_bytes,
@@ -16,7 +16,14 @@ def io_monitor():
                 "write_time": diskio.write_time,
                 "busy_time": diskio.busy_time,
             }
-            for k, diskio in iocounters.items()
-        }
+            
+        
+        if perdisk:
+            return {
+                str(k): diskinfo(diskio)
+                for k, diskio in iocounters.items()
+            }
+            
+        return diskinfo(iocounters)
 
     return monitor

@@ -3,12 +3,12 @@
 import psutil
 
 
-def network_monitor():
+def network_monitor(pernic=False):
     def monitor():
-        iocounters = psutil.net_io_counters()
-
-        return {
-            str(k): {
+        iocounters = psutil.net_io_counters(pernic=pernic)
+        
+        def netinfo(netio):
+            return {
                 "bytes_sent": netio.bytes_sent,
                 "bytes_recv": netio.bytes_recv,
                 "packets_sent": netio.packets_sent,
@@ -18,7 +18,13 @@ def network_monitor():
                 "dropin": netio.dropin,
                 "dropout": netio.dropout,
             }
-            for k, netio in iocounters.items()
-        }
+
+        if pernic:
+            return {
+                str(k): netinfo(netio)
+                for k, netio in iocounters.items()
+            }
+        
+        return netinfo(iocounters)
 
     return monitor

@@ -80,11 +80,11 @@ def deduce_backend():
     return suitable[0]
 
 
-def select_backend(arch=None):
+def select_backend(arch=None, force=False):
     global DEVICESMI
 
     if DEVICESMI is not None:
-        if arch is None or DEVICESMI.arch == arch:
+        if not force and (arch is None or DEVICESMI.arch == arch):
             return DEVICESMI
         DEVICESMI.close()
         DEVICESMI = None
@@ -159,9 +159,6 @@ def gpu_monitor(arch):
         arch: The GPU architecture to monitor. If None, the architecture will be
             deduced automatically.
     """
-
-    smi = select_backend(arch)
-
     def monitor():
         return {
             gpu["device"]: {
@@ -173,7 +170,7 @@ def gpu_monitor(arch):
                 "temperature": gpu["temperature"],
                 "power": gpu["power"],
             }
-            for gpu in smi.get_gpus_info(_visible_devices(smi)).values()
+            for gpu in DEVICESMI.get_gpus_info(_visible_devices(DEVICESMI)).values()
         }
 
     return monitor

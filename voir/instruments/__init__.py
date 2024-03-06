@@ -8,7 +8,8 @@ defined in their own files that are imported lazily.
 _instruments = {
     "log": "from .log import log",
     "dash": "from .dash import dash",
-    "gpu_monitor": "from .gpu import gpu_monitor",
+    "gpu_monitor": "from .monitor import gpu_monitor",
+    "monitor_all": "from .monitor import monitor_all",
     "rate": "from .metric import rate",
     "early_stop": "from .manage import early_stop",
 }

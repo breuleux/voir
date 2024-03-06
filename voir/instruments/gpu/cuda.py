@@ -49,7 +49,7 @@ def is_installed():
 
 
 class DeviceSMI:
-    def __init__(self) -> None:
+    def _setup(self):
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
 
@@ -61,6 +61,10 @@ class DeviceSMI:
 
         except NVMLError_DriverNotLoaded as err:
             raise NotAvailable() from err
+
+    def __init__(self) -> None:
+        self.nvsmi = None
+        self._setup()
 
     @property
     def arch(self):
