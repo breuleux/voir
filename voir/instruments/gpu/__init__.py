@@ -2,11 +2,8 @@
 
 import glob
 import os
-import time
 import traceback
 
-from ...tools import instrument_definition
-from ..utils import Monitor
 from .common import NotAvailable
 
 
@@ -159,6 +156,7 @@ def gpu_monitor():
         arch: The GPU architecture to monitor. If None, the architecture will be
             deduced automatically.
     """
+
     def monitor():
         return {
             gpu["device"]: {

@@ -12,7 +12,6 @@ from ovld import ovld
 
 from .overseer import Overseer
 
-
 module = type(operator)
 
 

@@ -6,7 +6,7 @@ import psutil
 def network_monitor(pernic=False):
     def monitor():
         iocounters = psutil.net_io_counters(pernic=pernic)
-        
+
         def netinfo(netio):
             return {
                 "bytes_sent": netio.bytes_sent,
@@ -20,11 +20,8 @@ def network_monitor(pernic=False):
             }
 
         if pernic:
-            return {
-                str(k): netinfo(netio)
-                for k, netio in iocounters.items()
-            }
-        
+            return {str(k): netinfo(netio) for k, netio in iocounters.items()}
+
         return netinfo(iocounters)
 
     return monitor

@@ -2,12 +2,11 @@
 import time
 
 from ..tools import instrument_definition
-from .utils import Monitor, monitor as generic_monitor
-
-from .gpu import gpu_monitor as gpu_monitor_fun, select_backend
 from .cpu import cpu_monitor
+from .gpu import gpu_monitor as gpu_monitor_fun, select_backend
 from .io import io_monitor
 from .network import network_monitor
+from .utils import monitor as generic_monitor
 
 
 def monitor(ov, poll_interval=10, worker_init=None, **monitors):
@@ -20,8 +19,8 @@ def monitor(ov, poll_interval=10, worker_init=None, **monitors):
         entries = []
         for k, v in monitors.items():
             values = {
-                "task": "main", 
-                "time": t, 
+                "task": "main",
+                "time": t,
                 k: v(),
             }
             entries.append(values)
@@ -54,7 +53,7 @@ def monitor_all(ov, poll_interval=10, arch=None):
         iodata=io_monitor(),
         netdata=network_monitor(),
         cpudata=cpu_monitor(),
-        worker_init=lambda: select_backend(arch, force=True)
+        worker_init=lambda: select_backend(arch, force=True),
     )
 
 
@@ -64,5 +63,5 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
         ov,
         poll_interval=poll_interval,
         gpudata=gpu_monitor_fun(),
-        worker_init=lambda: select_backend(arch, force=True)
+        worker_init=lambda: select_backend(arch, force=True),
     )

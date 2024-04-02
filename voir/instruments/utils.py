@@ -120,7 +120,7 @@ def monitor(delay, getfun, pushfun, process=True, worker_init=None):
     else:
         if worker_init:
             worker_init()
-            
+
     def fun():
         pushfun(getfun())
 

@@ -29,8 +29,6 @@ class StopProgram(BaseException):
 class OverseerAbort(BaseException):
     """Raise to abort the program."""
 
-    pass
-
 
 class Phase:
     """Phase of a process."""
@@ -221,7 +219,6 @@ class BaseOverseer:
                     pass
                 except BaseException as exc:
                     self._on_instrument_error(exc)
-                    pass
 
     def _step(self, entry):
         """Step for one generator.
