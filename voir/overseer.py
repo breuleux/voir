@@ -102,7 +102,7 @@ class ProbeInstrument:
             yield ov.phases.run_script(priority=0)
 
 
-class SyncOverseer(GivenOverseer):
+class Overseer(GivenOverseer):
     """Oversee the running of a script and schedule instruments.
 
     When called with command-line arguments, the Overseer will parse instrument
@@ -214,17 +214,7 @@ class SyncOverseer(GivenOverseer):
         print("=" * 80, file=sys.stderr)
         super()._on_instrument_error(e)
 
-    def initialize_observer_parser(self, argv):
-        with self.run_phase(self.phases.init):
-            tmp_argparser = ExtendedArgumentParser(add_help=False)
-            tmp_argparser.add_argument("--config", action="append", default=[])
-            tmp_options, argv = tmp_argparser.parse_known_args(argv)
-            for config in tmp_options.config:
-                self.argparser.merge_base_config(yaml.safe_load(open(config, "r")))
-
-        return self.argparser, argv
-
-    def _prepare_log(self):
+    def _run(self, argv):
         self.log = LogStream()
         self.given.where("$event") >> self.log
         if self.logfile is not None:
@@ -232,14 +222,16 @@ class SyncOverseer(GivenOverseer):
             self.log >> self._logger.log
         else:
             self._logger = None
-            
-    def _run(self, argv):
-        self._prepare_log()
 
-        self.argparser, argv = self.initialize_observer_parser(argv)
+        with self.run_phase(self.phases.init):
+            tmp_argparser = ExtendedArgumentParser(add_help=False)
+            tmp_argparser.add_argument("--config", action="append", default=[])
+            tmp_options, argv = tmp_argparser.parse_known_args(argv)
+            for config in tmp_options.config:
+                self.argparser.merge_base_config(yaml.safe_load(open(config, "r")))
 
         with self.run_phase(self.phases.parse_args):
-            self.set_options(self.argparser.parse_args(argv))
+            self.options = self.argparser.parse_args(argv)
             del self.argparser
 
         with self.run_phase(self.phases.load_script):
@@ -248,9 +240,6 @@ class SyncOverseer(GivenOverseer):
         with self.run_phase(self.phases.run_script) as set_value:
             sys.argv = [script, *argv]
             set_value(func())
-
-    def set_options(self, options):
-        self.options = options
 
     def _prepare(self):
         super()._prepare()
@@ -287,16 +276,8 @@ def _resolve_function(options):
             module = importlib.import_module(module_name)
             return module_spec, argv, getattr(module, field)
         else:
-            from importlib.util import find_spec
             module_name = module_spec
-            
-            module_spec = find_spec(module_name)
-            script_new = Path(module_spec.origin)
-            
             script = Path(pkgutil.get_loader(module_name).get_filename())
-            
-            assert script_new == script
-            
             if script.name == "__init__.py":
                 script = script.parent / "__main__.py"
                 module_name = f"{module_name}.__main__"

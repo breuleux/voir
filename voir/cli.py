@@ -10,8 +10,8 @@ from runpy import run_path
 import pkg_resources
 from ovld import ovld
 
-from .overseer import SyncOverseer  as Overseer
-# from .async_overseer import AsyncOverseer as Overseer
+from .overseer import Overseer
+
 
 module = type(operator)
 

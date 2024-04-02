@@ -122,7 +122,7 @@ class BaseOverseer:
         # require() order when priorities are equal. The requested_phase is what
         # the generator last yielded and determines what is sent or thrown to
         # it.
-        self.plan = {phase.name: [] for phase in self.phases}
+        self.plan = {phase: [] for phase in self.phases}
         self.handler_args = args
         self.handler_kwargs = kwargs
         self.status = "init"
@@ -145,7 +145,7 @@ class BaseOverseer:
             func: A callable.
         """
         state = getattr(func, "__state__", func)
-        
+
         if self.status == "init":
             self._to_require.append(func)
             return state
@@ -212,7 +212,7 @@ class BaseOverseer:
         pass
 
     def _on_stop(self, value):
-        self.set_status("stopped")
+        self.status = "stopped"
         for entries in self.plan.values():
             for _, __, gen, ___ in entries:
                 try:
@@ -236,7 +236,7 @@ class BaseOverseer:
                 return
             elif not next_phase.done:
                 break
-        heapq.heappush(self.plan[next_phase.name], (-next_priority, gid, gen, next_phase))
+        heapq.heappush(self.plan[next_phase], (-next_priority, gid, gen, next_phase))
 
     def _step_one(self, gen, ph):
         """Run one step of the generator using the given phase.
@@ -295,10 +295,15 @@ class BaseOverseer:
 
         phase.status = "running"
         phase.value = result
-        phase.exception = exception   
+        phase.exception = exception
+        entries = self.plan[phase]
 
         try:
-            self.advance_observers(phase)
+            while entries:
+                # Note: existing coroutines can call require() to add new entries,
+                # so the heap can become larger from an iteration to the next.
+                entry = heapq.heappop(entries)
+                self._step(entry)
             phase.status = "done"
         except OverseerAbort as exc:
             raise exc.args[0]
@@ -306,25 +311,10 @@ class BaseOverseer:
             if exception:
                 raise exception
 
-    def advance_observers(self, phase):
-        entries = self.plan[phase.name]
-
-        while entries:
-            # Note: existing coroutines can call require() to add new entries,
-            # so the heap can become larger from an iteration to the next.
-            entry = heapq.heappop(entries)
-            self._step(entry)
-        
     def _prepare(self):
         if self.status != "init":
             raise Exception("Can only enter runner when status == 'init'")
-        self.set_status("running")
-        self._add_prepare_observer()
-        
-    def set_status(self, newstatus):
-        self.status = newstatus
-            
-    def _add_prepare_observer(self):
+        self.status = "running"
         for req in self._to_require:
             self.require(req)
 
@@ -360,7 +350,6 @@ class GivenOverseer(BaseOverseer):
             args=args,
             kwargs=kwargs,
         )
-        self.given = None
         self._queue = Queue()
         self._thread = threading.current_thread()
         self._queue_called = False
@@ -403,8 +392,7 @@ class GivenOverseer(BaseOverseer):
 
     def _prepare(self):
         super()._prepare()
-        if self.given is None:
-            self.given = given().__enter__()
+        self.given = given().__enter__()
 
     def _finish(self):
         self._dump_queue()

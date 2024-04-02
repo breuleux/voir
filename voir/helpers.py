@@ -6,7 +6,7 @@ a script run through Voir.
 
 from contextvars import ContextVar
 
-from giving.api import give, giver
+from giving import give
 
 current_overseer = ContextVar("current_overseer", default=None)
 
@@ -23,16 +23,9 @@ def log(**kwargs):
         ov.log(kwargs)
 
 
-def default_batch_size_calc(batch):
-    if isinstance(batch, (list, tuple)):
-        return len(batch[0])
-    else:
-        return len(batch)
-
-
 def iterate(
-    task: str, iterable, report_batch=False, ignore_loading=False, batch_size=None):
-
+    task: str, iterable, report_batch=False, ignore_loading=False, batch_size=None
+):
     """Stream events along an iterative process.
 
     ``iterate`` iterates over the iterable, and while it does so it generates a progress
@@ -122,15 +115,14 @@ def iterate(
             give(progress=(i, n))
 
     i = 0
-    with giver().inherit(task=task):
+    with give.inherit(task=task):
         prog(0)
         it = iter(iterable)
-        
         while True:
             if i == n:
                 break
             i += 1
-            
+
             def get_batch():
                 batch = next(it)
                 if batch_size is None:
@@ -147,55 +139,16 @@ def iterate(
                     yield batch
                 elif ignore_loading:
                     batch, kwargs = get_batch()
-                    with giver().wrap("step", **kwargs):
+                    with give.wrap("step", **kwargs):
                         yield batch
                 else:
-                    empty_kwargs = {}
-                    if batch_size is None:
-                        empty_kwargs['batch'] = None
-                    else:
-                        empty_kwargs["batch_size"] = None
-
-                    with giver().wrap("step", **empty_kwargs) as extra:
+                    empty_kwargs = (
+                        {"batch": None} if batch_size is None else {"batch_size": None}
+                    )
+                    with give.wrap("step", **empty_kwargs) as extra:
                         batch, kwargs = get_batch()
                         extra.update(kwargs)
                         yield batch
             except StopIteration:
                 break
             prog(i)
-
-
-
-def simple_():
-    assert isinstance(task, str)
-    
-    def deduce_size(batch):
-        return len(batch)
-    
-    try:
-        n = len(iterable)
-    except TypeError:
-        n = None
-
-    def prog(i):
-        if n is not None:
-            give(progress=(i, n))
-
-    it = iter(iterable)
-    while True:
-        if i == n:
-            break
-        i += 1
-
-        try:
-            batch = next(it)
-            
-            give(batch_size=len(batch))
-            
-            yield batch
-        except StopIteration:
-            break
-        
-        # new progress
-        prog(i)
-    
