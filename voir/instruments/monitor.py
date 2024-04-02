@@ -50,7 +50,7 @@ def monitor_all(ov, poll_interval=10, arch=None):
     return monitor(
         ov,
         poll_interval=poll_interval,
-        gpudata=gpu_monitor_fun(arch),
+        gpudata=gpu_monitor_fun(),
         iodata=io_monitor(),
         netdata=network_monitor(),
         cpudata=cpu_monitor(),
@@ -58,9 +58,11 @@ def monitor_all(ov, poll_interval=10, arch=None):
     )
 
 
+@instrument_definition
 def gpu_monitor(ov, poll_interval=10, arch=None):
     return monitor(
         ov,
         poll_interval=poll_interval,
-        gpudata=gpu_monitor_fun(arch),
+        gpudata=gpu_monitor_fun(),
+        worker_init=lambda: select_backend(arch, force=True)
     )

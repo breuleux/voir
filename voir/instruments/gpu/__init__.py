@@ -130,7 +130,7 @@ def _visible_devices(smi):
     return ours
 
 
-def gpu_monitor(arch):
+def gpu_monitor():
     """Monitor GPU utilization.
 
     Supports monitoring CUDA (NVIDIA) and ROCm (AMD) architectures.
