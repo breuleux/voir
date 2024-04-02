@@ -236,7 +236,7 @@ class SyncOverseer(GivenOverseer):
     def _run(self, argv):
         self._prepare_log()
 
-        argv = self.initialize_observer_parser(argv)
+        self.argparser, argv = self.initialize_observer_parser(argv)
 
         with self.run_phase(self.phases.parse_args):
             self.set_options(self.argparser.parse_args(argv))

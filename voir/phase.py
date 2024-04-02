@@ -360,6 +360,7 @@ class GivenOverseer(BaseOverseer):
             args=args,
             kwargs=kwargs,
         )
+        self.given = None
         self._queue = Queue()
         self._thread = threading.current_thread()
         self._queue_called = False
@@ -402,7 +403,8 @@ class GivenOverseer(BaseOverseer):
 
     def _prepare(self):
         super()._prepare()
-        self.given = given().__enter__()
+        if self.given is None:
+            self.given = given().__enter__()
 
     def _finish(self):
         self._dump_queue()

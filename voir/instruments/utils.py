@@ -117,7 +117,10 @@ def monitor(delay, getfun, pushfun, process=True, worker_init=None):
         m.append(monitor)
         m.append(ProcessPusher(delay, monitor.results, pushfun))
         return _Monitor(*m)
-
+    else:
+        if worker_init:
+            worker_init()
+            
     def fun():
         pushfun(getfun())
 

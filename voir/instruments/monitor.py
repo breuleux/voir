@@ -35,7 +35,7 @@ def monitor(ov, poll_interval=10, worker_init=None, **monitors):
         poll_interval,
         get,
         push,
-        process=True,
+        process=False,
         worker_init=worker_init,
     )
     mon.start()

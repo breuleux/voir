@@ -18,7 +18,7 @@ from .phase import StopProgram, Phase, OverseerAbort
 
 SHR_ON = 1
 
-def _worker(in_queue, out_queue, shared_state, cls, cls_args):
+def _worker(in_queue, out_queue, exception_queue, shared_state, cls, cls_args):
     shared_state[SHR_ON] = 1
     def newreply(r):
         out_queue.put(cloudpickle.dumps(r))
@@ -30,6 +30,7 @@ def _worker(in_queue, out_queue, shared_state, cls, cls_args):
                 funame, reply, args, kwargs = cloudpickle.loads(payload)
                 
                 if hasattr(handler, funame):
+                    
                     r = getattr(handler, funame)(*args, **kwargs)
                     
                     if reply:
@@ -45,15 +46,20 @@ def _worker(in_queue, out_queue, shared_state, cls, cls_args):
 
             except Empty:
                 continue
-            except Exception:
-                traceback.print_exc()
+            
+            except StopProgram as err:
+                exception_queue.put(err)
     
+            except BaseException as err:
+                traceback.print_exc()
+
 
 class ProcWorker:
     def __init__(self, observer_cls, observer_args=tuple(), size=20):
         self.mm = multiprocessing.Manager()
         self.in_queue = self.mm.Queue(size)
         self.out_queue = self.mm.Queue()
+        self.exception_queue = self.mm.Queue()
         self.state = self.mm.dict()
         self.worker = None
         self.observer_cls = observer_cls
@@ -72,6 +78,7 @@ class ProcWorker:
             args=(
                 self.in_queue, 
                 self.out_queue, 
+                self.exception_queue,
                 self.state, 
                 self.observer_cls, 
                 self.observer_args
@@ -91,9 +98,13 @@ class ProcWorker:
                 raise TimeoutError()
             
     def send(self, fun_name, *args, reply=False, **kwargs):
+        # This is the exception from previous call
+        if not self.exception_queue.empty():
+            raise self.exception_queue.get()
+            
         payload = cloudpickle.dumps((fun_name, reply, args, kwargs))
         self.in_queue.put(payload)
-        
+
     def barrier(self):
         self.send("#barrier")
         _ = self.wait_output()
@@ -102,8 +113,11 @@ class ProcWorker:
     def wait(self, timeout=None):
         s = time.time()
         while self.state[SHR_ON]:
-            if self.in_queue.empty():
+            if self.in_queue.empty() and self.exception_queue.empty():
                 break
+            
+            if not self.exception_queue.empty():
+                raise self.exception_queue.get()
             
             if timeout is not None and (time.time() - s > timeout):
                 raise TimeoutError()
@@ -113,6 +127,9 @@ class ProcWorker:
         while self.state[SHR_ON]:
             if timeout is not None and (time.time() - s > timeout):
                 raise TimeoutError()
+            
+            if not self.exception_queue.empty():
+                raise self.exception_queue.get()
             
             try:
                 return cloudpickle.loads(self.out_queue.get_nowait())
@@ -140,21 +157,22 @@ class _Wrapped(SyncOverseer):
     def __init__(self, instruments, logfile=None):
         self.options = None
         super().__init__(instruments, logfile)
-    
+        
     def __enter__(self):
         return self
     
     def __exit__(self, *args):
         return
 
-    def produce(self, values):
-        giver().produce(values)
-        
+    def _send(self, values):
+        giver()._send(values)
+            
     def giver_call(self, *args, **values):
-        giver()(*args, **values)
+        self.give(*args, **values)
     
     def write(self, data):
-        print(data, end="")
+        sys.stdout.write(data)
+        # print(data, end="")
         
     def remote_log(self, *args):
         return self.log(*args)
@@ -165,8 +183,8 @@ class AsyncGiver(Giver):
         super().__init__(*args, **kwargs)
         self.remote_worker = remote_worker
         
-    def produce(self, values):
-        self.remote_worker.send("produce", values)
+    def _send(self, values):
+        self.remote_worker.send("_send", values)
         
     def __call__(self, *args, **values):
         self.remote_worker.send("giver_call", *args, **values)
@@ -183,7 +201,7 @@ class _OutForward:
         pass
 
 
-class AsyncOverseer(SyncOverseer):
+class AsyncOverseer(SyncOverseer):    
     def _prepare_log(self):
         self.remote.send("_prepare_log")
         
@@ -194,7 +212,7 @@ class AsyncOverseer(SyncOverseer):
     def initialize_observer_parser(self, argv):
         self.remote.send("initialize_observer_parser", argv, reply=True)
         self.argparser, argv = self.remote.wait_output()
-        return argv
+        return self.argparser, argv
         
     def advance_observers(self, phase):
         self.remote.send("advance_observers", phase)
@@ -224,8 +242,8 @@ class AsyncOverseer(SyncOverseer):
     def __init__(self, instruments, logfile=None):
         self.remote = ProcWorker(
             _Wrapped,
-            ([],),
-            20
+            ([],logfile),
+            20000
         ).__enter__()
         
         self.stdout = sys.stdout
@@ -252,10 +270,17 @@ class AsyncOverseer(SyncOverseer):
         self.remote.send("remote_log", *args)
         
     def _finish(self):
-        self.remote.send("_finish")
+        # Close everything on our end first
+        # finish pushing the last messages
         super()._finish()
-        self.remote.__exit__(None, None, None)
+     
+        # ask for the remote instance to wrap up as well
+        self.remote.send("_finish")
+        
+        # Remote is not needed anymore
         sys.stdout = self.stdout
+        self.remote.__exit__(None, None, None)
+        
 
 
 

@@ -6,7 +6,7 @@ a script run through Voir.
 
 from contextvars import ContextVar
 
-from giving import give, giver
+from giving.api import give, giver
 
 current_overseer = ContextVar("current_overseer", default=None)
 
@@ -23,9 +23,16 @@ def log(**kwargs):
         ov.log(kwargs)
 
 
+def default_batch_size_calc(batch):
+    if isinstance(batch, (list, tuple)):
+        return len(batch[0])
+    else:
+        return len(batch)
+
+
 def iterate(
-    task: str, iterable, report_batch=False, ignore_loading=False, batch_size=None
-):
+    task: str, iterable, report_batch=False, ignore_loading=False, batch_size=None):
+
     """Stream events along an iterative process.
 
     ``iterate`` iterates over the iterable, and while it does so it generates a progress
@@ -118,11 +125,12 @@ def iterate(
     with giver().inherit(task=task):
         prog(0)
         it = iter(iterable)
+        
         while True:
             if i == n:
                 break
             i += 1
-
+            
             def get_batch():
                 batch = next(it)
                 if batch_size is None:
@@ -142,9 +150,12 @@ def iterate(
                     with giver().wrap("step", **kwargs):
                         yield batch
                 else:
-                    empty_kwargs = (
-                        {"batch": None} if batch_size is None else {"batch_size": None}
-                    )
+                    empty_kwargs = {}
+                    if batch_size is None:
+                        empty_kwargs['batch'] = None
+                    else:
+                        empty_kwargs["batch_size"] = None
+
                     with giver().wrap("step", **empty_kwargs) as extra:
                         batch, kwargs = get_batch()
                         extra.update(kwargs)
