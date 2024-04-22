@@ -5,9 +5,11 @@ from .common import NotAvailable
 
 IMPORT_ERROR = None
 try:
+    # python -m pip install --index-url https://pypi.anaconda.org/intel/simple dpctl
     import dpctl
 except ImportError as err:
     IMPORT_ERROR = err
+
 
 def fix_num(n):
     if n == "N/A":
@@ -44,7 +46,10 @@ def parse_gpu(gpu, gid):
         },
         "temperature": 1,
         "power": 1,
-        "selection_variable": "SYCL_DEVICE_FILTER",
+        #
+        # ONEAPI_DEVICE_SELECTOR='opencl:0,1,2,3'
+        #
+        "selection_variable": "ONEAPI_DEVICE_SELECTOR",
     }
 
 
@@ -57,7 +62,8 @@ def get_gpus():
     cpus = []
 
     for device in get_devices():
-        if device.is_gpu:
+        # GPUs are shown as level_zero AND openCL
+        if device.is_gpu and 'level_zero' not in device.get_filter_string():
             gpus.append(device)
 
         if device.is_cpu:
