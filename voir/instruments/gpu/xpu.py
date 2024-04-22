@@ -39,7 +39,7 @@ def parse_gpu(gpu, gid):
         "product": gpu.name,
         "memory": {
             "used": 0,
-            "total": gpu.max_mem_alloc_size,
+            "total": gpu.max_mem_alloc_size / (1024 * 1024),
         },
         "utilization": {
             "compute": 1,
