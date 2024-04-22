@@ -33,8 +33,9 @@ def parse_gpu(gpu, gid):
     #     Vendor          Intel(R) Corporation
     #     Filter string   opencl:gpu:0
 
+    id = gpu.filter_string.split(':')[-1]
     return {
-        "device": gpu.get_filter_string(),
+        "device": f"level_zero:{id}",
         "product": gpu.name,
         "memory": {
             "used": 0,
@@ -47,7 +48,9 @@ def parse_gpu(gpu, gid):
         "temperature": 1,
         "power": 1,
         #
-        # ONEAPI_DEVICE_SELECTOR='opencl:0,1,2,3'
+        # ONEAPI_DEVICE_SELECTOR='opencl:1,2'            <= Can I assume that CPU is always 0
+        # ONEAPI_DEVICE_SELECTOR='opencl:gpu;opencl:1,2' <= DOES NOT WORK selects everything
+        #                                                   I want to select GPU 0,1 
         #
         "selection_variable": "ONEAPI_DEVICE_SELECTOR",
     }
@@ -63,7 +66,7 @@ def get_gpus():
 
     for device in get_devices():
         # GPUs are shown as level_zero AND openCL
-        if device.is_gpu and 'level_zero' not in device.get_filter_string():
+        if device.is_gpu and 'level_zero' in device.get_filter_string():
             gpus.append(device)
 
         if device.is_cpu:
