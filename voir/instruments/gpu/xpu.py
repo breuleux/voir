@@ -29,12 +29,13 @@ def query_gpu_data(gpu):
     # 7. GPU Memory Write (kB/s), per tile or device. Device-level is the sum value of tiles for multi-tiles.
     # 18. GPU Memory Used (MiB), per tile or device. Device-level is the sum value of tiles for multi-tiles. 
 
+    # xpu-smi does not seem to be working as expected
     output = subprocess.check_output([
-        "xpu-smi",
+        "xpumcli",
         "dump",
         "-t", "0,1",        # All tiles, 1550 have 2 tiles
         "-d", "-1",         # All Devices
-        "-m", "0,1,3,5",    # Compute Util, Power, Temp, Mem Util
+        "-m", "0,1,3,5,18",    # Compute Util, Power, Temp, Mem Util
         "-n", "1"           # Run once
     ], text=True)
 
@@ -55,8 +56,7 @@ def query_gpu_data(gpu):
         if len(line) == 0:
             continue
 
-        timestamp, device_id, tile_id, gpu_util, power, temp, mem = line.split(',')
-        gpu_util = parse(gpu_util, float, 0)
+        timestamp, device_id, tile_id, gpu_util, power, temp, mem_per, mem_bytes = line.split(',')
         device_id = parse(device_id, int, 0)
         tile_id = parse(tile_id, int, 0)
 
@@ -64,15 +64,15 @@ def query_gpu_data(gpu):
             "device": f"level_zero:{device_id * 2 + tile_id}",
             "product": gpu.name,
             "memory": {
-                "used": total_size * gpu_util,
+                "used": parse(mem_bytes, float, 0),
                 "total": total_size,
             },
             "utilization": {
-                "compute": parse(gpu_util, float, 0),
-                "memory": parse(mem, float, 0)
+                "compute": parse(gpu_util, float, 0) / 100,
+                "memory": parse(mem_per, float, 0) / 100
             },
-            "temperature": parse(power, float, 0),
-            "power": parse(temp, float, 0),
+            "temperature": parse(temp, float, 0),
+            "power": parse(power, float, 0),
             "selection_variable": "ONEAPI_DEVICE_SELECTOR",
         })
     return data
@@ -95,9 +95,10 @@ def parse_gpu(gpu, gid):
     #     Vendor          Intel(R) Corporation
     #     Filter string   opencl:gpu:0
 
-    id = gpu.filter_string.split(':')[-1]
+    # This ID is wrong
+    # id = gpu.filter_string.split(':')[-1]
     return {
-        "device": f"level_zero:{id}",
+        "device": f"level_zero:{int(gid)}",
         "product": gpu.name,
         "memory": {
             "used": 0,
@@ -148,25 +149,33 @@ class DeviceSMI:
             raise NotAvailable from IMPORT_ERROR
         
         self.gpus = get_gpus()
+        visible_devices = os.environ.get('ONEAPI_DEVICE_SELECTOR', None)
 
+        if visible_devices is None:
+            self.device_ids = list(range(len(self.gpus)))
+        else:
+            device_ids = []
+            for device in visible_devices.split(','):
+                device_ids.append(int(device.split(':')[-1]))
+
+            self.device_ids = device_ids
+            
     @property
     def arch(self):
         return "xpu"
 
     @property
     def visible_devices(self):
-        return os.environ.get("SYCL_DEVICE_FILTER", None)
+        return os.environ.get("ONEAPI_DEVICE_SELECTOR", None)
 
     def get_gpus_info(self, selection=None):
         # Assume all GPUs are the same
-        # all_gpus = query_gpu_data(self.gpus[0])
+        all_gpus = query_gpu_data(self.gpus[0])
 
-        # def get_id(gpu):
-        #     return int(gpu.filter_string.split(':')[-1])
+        return {i: all_gpus[i] for i in self.device_ids}
 
-        # return {get_id(g): all_gpus[get_id(g)] for i, g in enumerate(self.gpus)}
-
-        return {i: parse_gpu(g, i) for i, g in enumerate(self.gpus)}
+        # use dpctl only
+        return {i: parse_gpu(g, i) for i, g in zip(self.device_ids, self.gpus)}
 
     def close(self):
         pass
