@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from .common import NotAvailable
 
@@ -15,6 +16,67 @@ def fix_num(n):
     if n == "N/A":
         n = None
     return n
+
+
+def query_gpu_data(gpu):
+    # 0. GPU Utilization (%), GPU active time of the elapsed time, per tile or device. Device-level is the average value of tiles for multi-tiles.
+    # 1. GPU Power (W), per tile or device.
+    # 2. GPU Frequency (MHz), per tile or device. Device-level is the average value of tiles for multi-tiles.
+    # 3. GPU Core Temperature (Celsius Degree), per tile or device. Device-level is the average value of tiles for multi-tiles.
+    # 4. GPU Memory Temperature (Celsius Degree), per tile or device. Device-level is the average value of tiles for multi-tiles.
+    # 5. GPU Memory Utilization (%), per tile or device. Device-level is the average value of tiles for multi-tiles.
+    # 6. GPU Memory Read (kB/s), per tile or device. Device-level is the sum value of tiles for multi-tiles.
+    # 7. GPU Memory Write (kB/s), per tile or device. Device-level is the sum value of tiles for multi-tiles.
+    # 18. GPU Memory Used (MiB), per tile or device. Device-level is the sum value of tiles for multi-tiles. 
+
+    output = subprocess.check_output([
+        "xpu-smi",
+        "dump",
+        "-t", "0,1",        # All tiles, 1550 have 2 tiles
+        "-d", "-1",         # All Devices
+        "-m", "0,1,3,5",    # Compute Util, Power, Temp, Mem Util
+        "-n", "1"           # Run once
+    ], text=True)
+
+    def parse(val, type, default):
+        try:
+            return type(val)
+        except:
+            return default
+
+    header = None
+    data = []
+    total_size = gpu.max_mem_alloc_size / (1024 * 1024)
+
+    for i, line in enumerate(output.split('\n')):
+        if i == 0:
+            continue
+
+        if len(line) == 0:
+            continue
+
+        timestamp, device_id, tile_id, gpu_util, power, temp, mem = line.split(',')
+        gpu_util = parse(gpu_util, float, 0)
+        device_id = parse(device_id, int, 0)
+        tile_id = parse(tile_id, int, 0)
+
+        data.append({
+            "device": f"level_zero:{device_id * 2 + tile_id}",
+            "product": gpu.name,
+            "memory": {
+                "used": total_size * gpu_util,
+                "total": total_size,
+            },
+            "utilization": {
+                "compute": parse(gpu_util, float, 0),
+                "memory": parse(mem, float, 0)
+            },
+            "temperature": parse(power, float, 0),
+            "power": parse(temp, float, 0),
+            "selection_variable": "ONEAPI_DEVICE_SELECTOR",
+        })
+    return data
+
 
 
 def parse_gpu(gpu, gid):
@@ -83,7 +145,7 @@ def is_installed():
 class DeviceSMI:
     def __init__(self) -> None:
         if IMPORT_ERROR is not None:
-            raise IMPORT_ERROR
+            raise NotAvailable from IMPORT_ERROR
         
         self.gpus = get_gpus()
 
@@ -96,6 +158,13 @@ class DeviceSMI:
         return os.environ.get("SYCL_DEVICE_FILTER", None)
 
     def get_gpus_info(self, selection=None):
+        # Assume all GPUs are the same
+        # all_gpus = query_gpu_data(self.gpus[0])
+
+        # def get_id(gpu):
+        #     return int(gpu.filter_string.split(':')[-1])
+
+        # return {get_id(g): all_gpus[get_id(g)] for i, g in enumerate(self.gpus)}
 
         return {i: parse_gpu(g, i) for i, g in enumerate(self.gpus)}
 
