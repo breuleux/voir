@@ -3,19 +3,12 @@ import subprocess
 
 from .common import NotAvailable
 
-
 IMPORT_ERROR = None
 try:
     # python -m pip install --index-url https://pypi.anaconda.org/intel/simple dpctl
     import dpctl
 except ImportError as err:
     IMPORT_ERROR = err
-
-
-def fix_num(n):
-    if n == "N/A":
-        n = None
-    return n
 
 
 def query_gpu_data(gpu):
@@ -27,96 +20,72 @@ def query_gpu_data(gpu):
     # 5. GPU Memory Utilization (%), per tile or device. Device-level is the average value of tiles for multi-tiles.
     # 6. GPU Memory Read (kB/s), per tile or device. Device-level is the sum value of tiles for multi-tiles.
     # 7. GPU Memory Write (kB/s), per tile or device. Device-level is the sum value of tiles for multi-tiles.
-    # 18. GPU Memory Used (MiB), per tile or device. Device-level is the sum value of tiles for multi-tiles. 
+    # 18. GPU Memory Used (MiB), per tile or device. Device-level is the sum value of tiles for multi-tiles.
 
     # xpu-smi does not seem to be working as expected
-    output = subprocess.check_output([
-        "xpumcli",
-        "dump",
-        "-t", "0,1",        # All tiles, 1550 have 2 tiles
-        "-d", "-1",         # All Devices
-        "-m", "0,1,3,5,18",    # Compute Util, Power, Temp, Mem Util
-        "-n", "1"           # Run once
-    ], text=True)
+    output = subprocess.check_output(
+        [
+            "xpumcli",
+            "dump",
+            "-t",
+            "0,1",  # All tiles, 1550 have 2 tiles
+            "-d",
+            "-1",  # All Devices
+            "-m",
+            "0,1,3,5,18",  # Compute Util, Power, Temp, Mem Util
+            "-n",
+            "1",  # Run once
+        ],
+        text=True,
+    )
 
     def parse(val, type, default):
         try:
             return type(val)
-        except:
+        except ValueError:
             return default
 
-    header = None
     data = []
     total_size = gpu.max_mem_alloc_size / (1024 * 1024)
 
-    for i, line in enumerate(output.split('\n')):
+    for i, line in enumerate(output.split("\n")):
         if i == 0:
             continue
 
         if len(line) == 0:
             continue
 
-        timestamp, device_id, tile_id, gpu_util, power, temp, mem_per, mem_bytes = line.split(',')
+        (
+            timestamp,
+            device_id,
+            tile_id,
+            gpu_util,
+            power,
+            temp,
+            mem_per,
+            mem_bytes,
+        ) = line.split(",")
         device_id = parse(device_id, int, 0)
         tile_id = parse(tile_id, int, 0)
 
-        data.append({
-            "device": f"level_zero:{device_id * 2 + tile_id}",
-            "product": gpu.name,
-            "memory": {
-                "used": parse(mem_bytes, float, 0),
-                "total": total_size,
-            },
-            "utilization": {
-                "compute": parse(gpu_util, float, 0) / 100,
-                "memory": parse(mem_per, float, 0) / 100
-            },
-            "temperature": parse(temp, float, 0),
-            "power": parse(power, float, 0),
-            "selection_variable": "ONEAPI_DEVICE_SELECTOR",
-        })
+        data.append(
+            {
+                "device": f"level_zero:{device_id * 2 + tile_id}",
+                "product": gpu.name,
+                "memory": {
+                    "used": parse(mem_bytes, float, 0),
+                    "total": total_size,
+                },
+                "utilization": {
+                    "compute": parse(gpu_util, float, 0) / 100,
+                    "memory": parse(mem_per, float, 0) / 100,
+                },
+                "temperature": parse(temp, float, 0),
+                "power": parse(power, float, 0),
+                "selection_variable": "ONEAPI_DEVICE_SELECTOR",
+            }
+        )
     return data
-
-
-
-def parse_gpu(gpu, gid):
-    # device.vendor          => 'Intel(R) Corporation'
-    # device.name            => 'Intel(R) Data Center GPU Max 1550'
-    # device.local_mem_size  => 32768               (in bytes) 'Intel(R) Xeon(R) Platinum 8468V' 
-    #                        => 131072              (in bytes) 'Intel(R) Data Center GPU Max 1550'
-    # device.max_mem_alloc_size => 1082076110848    (in bytes)
-    #                           =>   65267564544    (in bytes) 'Intel(R) Data Center GPU Max 1550'
-    # device.get_filter_string() => 'opencl:cpu:0'      'Intel(R) Xeon(R) Platinum 8468V' 
-    # device.get_filter_string() => 'opencl:gpu:0'      'Intel(R) Data Center GPU Max 1550'
-    #
-    # >>> dpctl.get_devices()[1].print_device_info()
-    #     Name            Intel(R) Data Center GPU Max 1550
-    #     Driver version  23.30.26918.50
-    #     Vendor          Intel(R) Corporation
-    #     Filter string   opencl:gpu:0
-
-    # This ID is wrong
-    # id = gpu.filter_string.split(':')[-1]
-    return {
-        "device": f"level_zero:{int(gid)}",
-        "product": gpu.name,
-        "memory": {
-            "used": 0,
-            "total": gpu.max_mem_alloc_size / (1024 * 1024),
-        },
-        "utilization": {
-            "compute": 1,
-            "memory": 0,
-        },
-        "temperature": 1,
-        "power": 1,
-        #
-        # ONEAPI_DEVICE_SELECTOR='opencl:1,2'            <= Can I assume that CPU is always 0
-        # ONEAPI_DEVICE_SELECTOR='opencl:gpu;opencl:1,2' <= DOES NOT WORK selects everything
-        #                                                   I want to select GPU 0,1 
-        #
-        "selection_variable": "ONEAPI_DEVICE_SELECTOR",
-    }
 
 
 def get_devices():
@@ -129,14 +98,13 @@ def get_gpus():
 
     for device in get_devices():
         # GPUs are shown as level_zero AND openCL
-        if device.is_gpu and 'level_zero' in device.get_filter_string():
+        if device.is_gpu and "level_zero" in device.get_filter_string():
             gpus.append(device)
 
         if device.is_cpu:
             cpus.append(device)
 
     return gpus
-
 
 
 def is_installed():
@@ -147,19 +115,19 @@ class DeviceSMI:
     def __init__(self) -> None:
         if IMPORT_ERROR is not None:
             raise NotAvailable from IMPORT_ERROR
-        
+
         self.gpus = get_gpus()
-        visible_devices = os.environ.get('ONEAPI_DEVICE_SELECTOR', None)
+        visible_devices = os.environ.get("ONEAPI_DEVICE_SELECTOR", None)
 
         if visible_devices is None:
             self.device_ids = list(range(len(self.gpus)))
         else:
             device_ids = []
-            for device in visible_devices.split(','):
-                device_ids.append(int(device.split(':')[-1]))
+            for device in visible_devices.split(","):
+                device_ids.append(int(device.split(":")[-1]))
 
             self.device_ids = device_ids
-            
+
     @property
     def arch(self):
         return "xpu"
@@ -173,9 +141,6 @@ class DeviceSMI:
         all_gpus = query_gpu_data(self.gpus[0])
 
         return {i: all_gpus[i] for i in self.device_ids}
-
-        # use dpctl only
-        return {i: parse_gpu(g, i) for i, g in zip(self.device_ids, self.gpus)}
 
     def close(self):
         pass
