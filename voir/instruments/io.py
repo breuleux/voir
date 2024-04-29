@@ -14,7 +14,7 @@ def io_monitor(perdisk=False):
                 "read_bytes": diskio.read_bytes,
                 "read_time": diskio.read_time,
                 "write_time": diskio.write_time,
-                "busy_time": diskio.busy_time,
+                "busy_time": getattr(diskio, "busy_time", None),
             }
 
         if perdisk:
