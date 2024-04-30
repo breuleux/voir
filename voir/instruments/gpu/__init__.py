@@ -128,34 +128,7 @@ def _visible_devices(smi):
 
 
 def gpu_monitor():
-    """Monitor GPU utilization.
-
-    Supports monitoring CUDA (NVIDIA) and ROCm (AMD) architectures.
-
-    The following data is monitored:
-
-    .. code-block:: javascript
-
-        {
-            "memory": [USED, TOTAL],  // In MB
-            "load": LOAD,             // Utilization, from 0 to 1
-            "temperature": TEMP,      // In celsius
-            "power": POWER,
-        }
-
-    This data structure is added to the :meth:`~voir.overseer.Overseer.given` stream
-    as follows:
-
-    .. code-block:: python
-
-        give(task="main", gpudata=DATA)
-
-    Arguments:
-        poll_interval: The polling interval, in seconds. Data will be produced
-            every poll_interval seconds.
-        arch: The GPU architecture to monitor. If None, the architecture will be
-            deduced automatically.
-    """
+    """Returns a function that produce GPU monitoring data"""
 
     def monitor():
         return {
