@@ -94,7 +94,9 @@ def select_backend(arch=None, force=False):
     if backend is not None and backend.is_installed():
         DEVICESMI = backend.DeviceSMI()
     else:
-        raise NotAvailable(f"{arch} is not installed")
+        raise NotAvailable(
+            f"{arch} is not installed choose from {list(BACKENDS.keys())}"
+        )
 
     return DEVICESMI
 
