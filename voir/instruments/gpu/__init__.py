@@ -2,11 +2,8 @@
 
 import glob
 import os
-import time
 import traceback
 
-from ...tools import instrument_definition
-from ..utils import Monitor
 from .common import NotAvailable
 
 
@@ -80,11 +77,11 @@ def deduce_backend():
     return suitable[0]
 
 
-def select_backend(arch=None):
+def select_backend(arch=None, force=False):
     global DEVICESMI
 
     if DEVICESMI is not None:
-        if arch is None or DEVICESMI.arch == arch:
+        if not force and (arch is None or DEVICESMI.arch == arch):
             return DEVICESMI
         DEVICESMI.close()
         DEVICESMI = None
@@ -130,42 +127,11 @@ def _visible_devices(smi):
     return ours
 
 
-@instrument_definition
-def gpu_monitor(ov, poll_interval=10, arch=None):
-    """Monitor GPU utilization.
-
-    Supports monitoring CUDA (NVIDIA) and ROCm (AMD) architectures.
-
-    The following data is monitored:
-
-    .. code-block:: javascript
-
-        {
-            "memory": [USED, TOTAL],  // In MB
-            "load": LOAD,             // Utilization, from 0 to 1
-            "temperature": TEMP,      // In celsius
-            "power": POWER,
-        }
-
-    This data structure is added to the :meth:`~voir.overseer.Overseer.given` stream
-    as follows:
-
-    .. code-block:: python
-
-        give(task="main", gpudata=DATA)
-
-    Arguments:
-        poll_interval: The polling interval, in seconds. Data will be produced
-            every poll_interval seconds.
-        arch: The GPU architecture to monitor. If None, the architecture will be
-            deduced automatically.
-    """
-    yield ov.phases.load_script
-
-    smi = select_backend(arch)
+def gpu_monitor():
+    """Returns a function that produce GPU monitoring data"""
 
     def monitor():
-        data = {
+        return {
             gpu["device"]: {
                 "memory": [
                     gpu["memory"]["used"],
@@ -175,14 +141,7 @@ def gpu_monitor(ov, poll_interval=10, arch=None):
                 "temperature": gpu["temperature"],
                 "power": gpu["power"],
             }
-            for gpu in smi.get_gpus_info(_visible_devices(smi)).values()
+            for gpu in DEVICESMI.get_gpus_info(_visible_devices(DEVICESMI)).values()
         }
-        ov.give(task="main", gpudata=data, time=time.time())
 
-    monitor_thread = Monitor(poll_interval, monitor)
-    monitor_thread.start()
-    try:
-        yield ov.phases.run_script
-    finally:
-        monitor_thread.stop()
-        monitor()
+    return monitor
