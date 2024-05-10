@@ -32,7 +32,7 @@ NVSMI_POWER_DRAW = 141
 
 def fix_num(n):
     if n == "N/A":
-        n = None
+        n = -1
     return n
 
 
@@ -82,8 +82,8 @@ def make_gpu_info(handles, selection):
                 "memory": memInfo.used / memInfo.total,
             },
             "temperature": fix_num(safecall(pyhlml.hlmlDeviceGetTemperature, handle, NVML_TEMPERATURE_GPU)),
-            "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle) / 1000.0),
-            "selection_variable": "HABANA_VISIBLE_DEVICES",
+            "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
+            "selection_variable": "HABANA_VISIBLE_MODULES",
         }
 
     return gpu_infos
@@ -102,7 +102,7 @@ class DeviceSMI:
             raise NotAvailable() from err
 
         deviceCount = pyhlml.hlmlDeviceGetCount()
-        print(deviceCount)
+
         for i in range(0, deviceCount):
             self.handles[i] = pyhlml.hlmlDeviceGetHandleByIndex(i)
 
@@ -116,7 +116,7 @@ class DeviceSMI:
 
     @property
     def visible_devices(self):
-        return os.environ.get("HABANA_VISIBLE_DEVICES", None)
+        return os.environ.get("HABANA_VISIBLE_MODULES", None)
 
     def get_gpus_info(self, selection=None):
         return make_gpu_info(self.handles, selection)
