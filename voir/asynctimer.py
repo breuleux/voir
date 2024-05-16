@@ -1,15 +1,32 @@
+import json
+import sys
 import time
+
+from giving import give
+import torch
+import torch.distributed as dist
+
+from .phase import StopProgram
+from .helpers import current_overseer
+from .smuggle import SmuggleWriter
+
+
 
 
 class DataloaderWrapper:
-    """Time the body of a loop, ignoring the time it took to initialize the iterator.
+    """Time the body of a loop, ignoring the time it took to initialize the iterator.`
     The timings are measured using `torch.cuda.Event` to avoid explicit sync.
 
     An explicit sync is done at the end of an epoch or if the max number of observation is reached.
 
-    Because the timings are async, voir only gets triggered when the explicit sync happen which
+    Because the timings are async, voir only gets triggered when the explicit sync happens which
     is outside of the scope of performance measure, so no matter how long voir takes to process
-    the events it will not impact the measures
+    the events it will not impact the measures.
+
+    Notes
+    -----
+    The event progress is the only one that is feed synchronously so
+    this event should be handled quickly.
     
     Examples
     --------
@@ -24,7 +41,7 @@ class DataloaderWrapper:
 
                loader.add_loss(loss)                                        # < here
     """
-    def __init__(self, loader, event_fn, earlystop=None):
+    def __init__(self, loader, event_fn, rank=0, device=None, earlystop=None):
         self.loader = loader
         self.events = []
         self.losses = []
@@ -33,6 +50,17 @@ class DataloaderWrapper:
         self.world_size = 1
         self.early_stop = earlystop
         self.loader_init_time = []
+        self.rank = None
+        self.device = device
+        self.datafile = sys.stdout
+        self.n = len(loader)
+
+        if dist.is_initialized():
+            self.rank = rank
+            assert self.device is not None, "device is required to compute the final batch size"
+
+    def __getattr__(self, item):
+        return getattr(self.loader, item)
 
     def __len__(self):
         return len(loader)
@@ -53,19 +81,20 @@ class DataloaderWrapper:
         start.record()
 
         # avoid synchronization
-        for i in iterator:
-            yield i
+        for i, data in enumerate(iterator):
+            yield data
 
             end = self.event_fn(enable_timing=True)
             end.record()
-            bs = self.deduce_batch_size(i)
+            bs = self.deduce_batch_size(data)
             self.events.append((start, end, bs))
-
             # check for early stopping to avoid doing the full epoch
             self.earlystop()
             start = end
+            self.log_progress()
 
         self._push()
+        self.earlystop()
 
     def deduce_batch_size(self, elem):
         try:
@@ -83,12 +112,24 @@ class DataloaderWrapper:
             self._push()
             raise StopProgram()
 
+    def extra_work(self):
+        pass
+
     def _push(self):
+        self.extra_work()
+
         # Push synchronize to have the final compute times
         for start, end, bs in self.events:
             end.synchronize()
             elapsed = start.elapsed_time(end) / 1000
-            rate = (bs * self.world_size) / elapsed
+
+            # multi GPU, batch size count
+            if dist.is_initialized():
+                bs = torch.tensor([bs], dtype=torch.int64, device=self.device)
+                dist.reduce(bs, dst=0)
+                bs = bs.item()
+
+            rate = bs / elapsed
             self.log_rate(rate)
 
         for loss in self.losses:
@@ -101,13 +142,44 @@ class DataloaderWrapper:
     def add_loss(self, loss):
         # avoid .item() that cause sync
         self.losses.append(loss.detach())
+        return loss
 
     def log_rate(self, rate):
-        print("rate", rate)
+        if self.rank is None or self.rank == 0:
+            self.message(rate=rate, units="items/s", task="train")
+
+    def log_loss(self, loss):
+        if self.rank is None or self.rank == 0:
+            self.message(loss=loss, task="train")
+
+    def log_progress(self):
+        progress = len(self.events) + self.total_obs
+        self.message(progress=[progress, self.early_stop])
+
+    def message(self, **kwargs):
+        kwargs.setdefault("task", "train")
+        msg = json.dumps(kwargs)
+        print(msg, file=self.datafile)
+
+
+class DataloaderWrapperSmuggle(DataloaderWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.datafile = SmuggleWriter(sys.stdout)
+
+
+class DataloaderWrapperGiver(DataloaderWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ov = current_overseer.get()
+    
+    def log_rate(self, rate):
+        if self.rank is None or self.rank == 0:
+            self.ov.give(rate=rate, units="items/s", task="train")
     
     def log_loss(self, loss):
-        print("loss", loss)
-
+        if self.rank is None or self.rank == 0:
+            self.ov.give(loss=loss, task="train")
 
 
 class CPUEvent:
