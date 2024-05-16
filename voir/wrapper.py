@@ -94,6 +94,7 @@ class DataloaderWrapper:
         self.datafile = sys.stdout
         self.n = len(loader)
         self.unit = 1000 # timer is ms 
+        self.profile_instrumentation = False
 
         if dist.is_initialized():
             self.rank = rank
@@ -128,8 +129,11 @@ class DataloaderWrapper:
             end.record()
             bs = self.deduce_batch_size(data)
             self.events.append((start, end, bs))
+
             # check for early stopping to avoid doing the full epoch
-            self.earlystop()
+            if self.is_done():
+                break
+
             start = end
             self.log_progress()
 
@@ -147,13 +151,16 @@ class DataloaderWrapper:
         except:
             return 0
 
-    def earlystop(self):
-        if self.early_stop is None:
-            return 
+    def progress(self):
+        return len(self.events) + self.total_obs
 
-        if len(self.events) + self.total_obs >= self.early_stop:
+    def is_done(self):
+        return self.early_stop is not None and self.progress() >= self.early_stop
+
+    def earlystop(self, exception=StopProgram):
+        if self.is_done():
             self._push()
-            raise StopProgram()
+            raise exception()
 
     def extra_work(self):
         pass
@@ -184,11 +191,12 @@ class DataloaderWrapper:
         for loss in self.losses:
             self.log_loss(loss.item())
 
-        for ov in self.overhead:
-            self.message(overhead=ov, units="s", task='train')
-        
-        for iterinit in self.loader_init_time:
-            self.message(__iter__=iterinit, units="s", task='train')
+        if self.profile_instrumentation:
+            for ov in self.overhead:
+                self.message(overhead=ov, units="s", task='train')
+            
+            for iterinit in self.loader_init_time:
+                self.message(__iter__=iterinit, units="s", task='train')
 
         self.total_obs += len(self.events)
         self.events = []
@@ -211,8 +219,9 @@ class DataloaderWrapper:
         self.message(loss=loss, task="train")
 
     def log_progress(self):
-        progress = len(self.events) + self.total_obs
-        self.message(progress=[progress, self.early_stop])
+        if self.early_stop is not None:
+            progress = self.progress()
+            self.message(progress=[progress, self.early_stop])
 
     def message(self, **kwargs):
         if self.rank is None or self.rank == 0:
