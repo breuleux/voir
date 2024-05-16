@@ -11,6 +11,26 @@ from .helpers import current_overseer
 from .smuggle import SmuggleWriter
 
 
+class FakeInMemoryDataset:
+    def __init__(self, producer, batch_size, batch_count):
+        self.data = [
+            producer(i) for i in range(batch_size * batch_count)
+        ]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, item):
+        return self.data[item]
+
+
+class FakeImageClassification(FakeInMemoryDataset):
+    def __init__(self, shape, batch_size, batch_count):
+        def producer(i):
+            return (torch.randn(shape), i % 1000)
+
+        super().__init__(producer, batch_size, batch_count)
+
 
 
 class DataloaderWrapper:
@@ -27,6 +47,23 @@ class DataloaderWrapper:
     -----
     The event progress is the only one that is feed synchronously so
     this event should be handled quickly.
+
+    Arguments
+    ---------
+    loader: Dataloader
+        original pytorch dataloader
+
+    event_fn:
+        event constructor (torch.cuda.Evemt, toch.xpu.Event, etc...)
+    
+    rank: int
+        rank of the current process, only required if distributed
+
+    device:
+        device used, only required if distributed
+    
+    earlystop: int
+        number of observation to produce before raising StopProgram
     
     Examples
     --------
@@ -45,15 +82,18 @@ class DataloaderWrapper:
         self.loader = loader
         self.events = []
         self.losses = []
+        self.overhead = []
+        self.loader_init_time = []
+
         self.total_obs = 0
         self.event_fn = event_fn
         self.world_size = 1
         self.early_stop = earlystop
-        self.loader_init_time = []
         self.rank = None
         self.device = device
         self.datafile = sys.stdout
         self.n = len(loader)
+        self.unit = 1000 # timer is ms 
 
         if dist.is_initialized():
             self.rank = rank
@@ -66,8 +106,7 @@ class DataloaderWrapper:
         return len(loader)
 
     def __iter__(self):
-        # This takes much more time than expected
-        # good thing to keep track of it
+        # This takes much more time than expected good thing to keep track of it
         start = - time.time()
         iterator = iter(self.loader)
         end = time.time()
@@ -80,9 +119,10 @@ class DataloaderWrapper:
         start = self.event_fn(enable_timing=True)
         start.record()
 
-        # avoid synchronization
-        for i, data in enumerate(iterator):
+        for data in iterator:
             yield data
+
+            overhead_start = -time.time()
 
             end = self.event_fn(enable_timing=True)
             end.record()
@@ -92,6 +132,9 @@ class DataloaderWrapper:
             self.earlystop()
             start = end
             self.log_progress()
+
+            overhead_end = time.time()
+            self.overhead.append(overhead_start + overhead_end)
 
         self._push()
         self.earlystop()
@@ -116,12 +159,18 @@ class DataloaderWrapper:
         pass
 
     def _push(self):
+        """Push all the accumulated metrics"""
+        event = self.event_fn()
+        event.record()
+        event.synchronize()
+
+        s = -time.time()
         self.extra_work()
 
         # Push synchronize to have the final compute times
         for start, end, bs in self.events:
             end.synchronize()
-            elapsed = start.elapsed_time(end) / 1000
+            elapsed = start.elapsed_time(end) / self.unit
 
             # multi GPU, batch size count
             if dist.is_initialized():
@@ -135,9 +184,20 @@ class DataloaderWrapper:
         for loss in self.losses:
             self.log_loss(loss.item())
 
+        for ov in self.overhead:
+            self.message(overhead=ov, units="s", task='train')
+        
+        for iterinit in self.loader_init_time:
+            self.message(__iter__=iterinit, units="s", task='train')
+
         self.total_obs += len(self.events)
         self.events = []
         self.losses = []
+        self.overhead = [] 
+        self.loader_init_time = []
+        e = time.time()
+
+        self.message(process_time=(e+s), units="s", task="train")
     
     def add_loss(self, loss):
         # avoid .item() that cause sync
@@ -145,21 +205,20 @@ class DataloaderWrapper:
         return loss
 
     def log_rate(self, rate):
-        if self.rank is None or self.rank == 0:
-            self.message(rate=rate, units="items/s", task="train")
+        self.message(rate=rate, units="items/s", task="train")
 
     def log_loss(self, loss):
-        if self.rank is None or self.rank == 0:
-            self.message(loss=loss, task="train")
+        self.message(loss=loss, task="train")
 
     def log_progress(self):
         progress = len(self.events) + self.total_obs
         self.message(progress=[progress, self.early_stop])
 
     def message(self, **kwargs):
-        kwargs.setdefault("task", "train")
-        msg = json.dumps(kwargs)
-        print(msg, file=self.datafile)
+        if self.rank is None or self.rank == 0:
+            kwargs.setdefault("task", "train")
+            msg = json.dumps(kwargs)
+            print(msg, file=self.datafile)
 
 
 class DataloaderWrapperSmuggle(DataloaderWrapper):
@@ -167,19 +226,14 @@ class DataloaderWrapperSmuggle(DataloaderWrapper):
         super().__init__(*args, **kwargs)
         self.datafile = SmuggleWriter(sys.stdout)
 
-
 class DataloaderWrapperGiver(DataloaderWrapper):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ov = current_overseer.get()
     
-    def log_rate(self, rate):
+    def message(self, **kwargs):
         if self.rank is None or self.rank == 0:
-            self.ov.give(rate=rate, units="items/s", task="train")
-    
-    def log_loss(self, loss):
-        if self.rank is None or self.rank == 0:
-            self.ov.give(loss=loss, task="train")
+            self.ov.give(**kwargs)
 
 
 class CPUEvent:
