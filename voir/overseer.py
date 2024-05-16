@@ -92,9 +92,9 @@ class ProbeInstrument:
     >>> probe.display()
     """
 
-    def __init__(self, selector):
+    def __init__(self, selector, **kwargs):
         self.selector = selector
-        self.probe = self.__state__ = probing(self.selector)
+        self.probe = self.__state__ = probing(self.selector, **kwargs)
 
     def __call__(self, ov):
         yield ov.phases.load_script(priority=0)
@@ -166,7 +166,7 @@ class Overseer(GivenOverseer):
         self.require(*instruments)
         self.logfile = logfile
 
-    def probe(self, selector: str) -> Probe:
+    def probe(self, selector: str, **kwargs) -> Probe:
         """Create a :class:`ProbeInstrument` on the given selector.
 
         >>> probe = overseer.probe("f > x")
@@ -175,7 +175,7 @@ class Overseer(GivenOverseer):
         Arguments:
             selector: The selector to probe.
         """
-        return self.require(ProbeInstrument(select(selector, skip_frames=1)))
+        return self.require(ProbeInstrument(select(selector, skip_frames=1), **kwargs))
 
     def run_phase(self, phase: Phase):
         """Context manager to run a phase.

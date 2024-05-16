@@ -2,20 +2,18 @@ import json
 import sys
 import time
 
-from giving import give
 import torch
 import torch.distributed as dist
+from giving import give
 
-from .phase import StopProgram
 from .helpers import current_overseer
+from .phase import StopProgram
 from .smuggle import SmuggleWriter
 
 
 class FakeInMemoryDataset:
     def __init__(self, producer, batch_size, batch_count):
-        self.data = [
-            producer(i) for i in range(batch_size * batch_count)
-        ]
+        self.data = [producer(i) for i in range(batch_size * batch_count)]
 
     def __len__(self):
         return len(self.data)
@@ -31,6 +29,24 @@ class FakeImageClassification(FakeInMemoryDataset):
 
         super().__init__(producer, batch_size, batch_count)
 
+
+def file_push(fp=sys.stdout):
+    def message(**kwargs):
+        kwargs.setdefault("task", "train")
+        msg = json.dumps(kwargs)
+        print(msg, file=fp)
+
+    return message
+
+
+def sumggle_push():
+    fp = SmuggleWriter(sys.stdout)
+    return stdout_push(fp)
+
+
+def give_push():
+    ov = current_overseer.get()
+    return ov.give
 
 
 class DataloaderWrapper:
@@ -55,16 +71,19 @@ class DataloaderWrapper:
 
     event_fn:
         event constructor (torch.cuda.Evemt, toch.xpu.Event, etc...)
-    
+
     rank: int
         rank of the current process, only required if distributed
 
     device:
         device used, only required if distributed
-    
+
     earlystop: int
         number of observation to produce before raising StopProgram
-    
+
+    push: function:
+        function used to message/push metrics
+
     Examples
     --------
 
@@ -78,7 +97,22 @@ class DataloaderWrapper:
 
                loader.add_loss(loss)                                        # < here
     """
-    def __init__(self, loader, event_fn, rank=0, device=None, earlystop=None):
+
+    @classmethod
+    def with_sumggler(cls, *args, push=None, **kwargs):
+        return cls(*args, push=sumggle_push(), **kwargs)
+
+    @classmethod
+    def with_stdout(cls, *args, push=None, **kwargs):
+        return cls(*args, push=file_push(), **kwargs)
+
+    @classmethod
+    def with_give(cls, *args, push=None, **kwargs):
+        return cls(*args, push=give_push(), **kwargs)
+
+    def __init__(
+        self, loader, event_fn, rank=0, push=file_push(), device=None, earlystop=None
+    ):
         self.loader = loader
         self.events = []
         self.losses = []
@@ -93,12 +127,15 @@ class DataloaderWrapper:
         self.device = device
         self.datafile = sys.stdout
         self.n = len(loader)
-        self.unit = 1000 # timer is ms 
+        self.unit = 1000  # timer is ms
         self.profile_instrumentation = False
+        self.message_push = push
 
         if dist.is_initialized():
             self.rank = rank
-            assert self.device is not None, "device is required to compute the final batch size"
+            assert (
+                self.device is not None
+            ), "device is required to compute the final batch size"
 
     def __getattr__(self, item):
         return getattr(self.loader, item)
@@ -108,7 +145,7 @@ class DataloaderWrapper:
 
     def __iter__(self):
         # This takes much more time than expected good thing to keep track of it
-        start = - time.time()
+        start = -time.time()
         iterator = iter(self.loader)
         end = time.time()
 
@@ -193,20 +230,20 @@ class DataloaderWrapper:
 
         if self.profile_instrumentation:
             for ov in self.overhead:
-                self.message(overhead=ov, units="s", task='train')
-            
+                self.message(overhead=ov, units="s", task="train")
+
             for iterinit in self.loader_init_time:
-                self.message(__iter__=iterinit, units="s", task='train')
+                self.message(__iter__=iterinit, units="s", task="train")
 
         self.total_obs += len(self.events)
         self.events = []
         self.losses = []
-        self.overhead = [] 
+        self.overhead = []
         self.loader_init_time = []
         e = time.time()
 
-        self.message(process_time=(e+s), units="s", task="train")
-    
+        self.message(process_time=(e + s), units="s", task="train")
+
     def add_loss(self, loss):
         # avoid .item() that cause sync
         self.losses.append(loss.detach())
@@ -225,24 +262,7 @@ class DataloaderWrapper:
 
     def message(self, **kwargs):
         if self.rank is None or self.rank == 0:
-            kwargs.setdefault("task", "train")
-            msg = json.dumps(kwargs)
-            print(msg, file=self.datafile)
-
-
-class DataloaderWrapperSmuggle(DataloaderWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.datafile = SmuggleWriter(sys.stdout)
-
-class DataloaderWrapperGiver(DataloaderWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ov = current_overseer.get()
-    
-    def message(self, **kwargs):
-        if self.rank is None or self.rank == 0:
-            self.ov.give(**kwargs)
+            self.message_push(**kwargs)
 
 
 class CPUEvent:
