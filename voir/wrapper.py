@@ -2,16 +2,16 @@ import json
 import sys
 import time
 
+from .helpers import current_overseer
+from .phase import StopProgram
+from .smuggle import SmuggleWriter
+
 TORCH_ERROR = None
 try:
     import torch
     import torch.distributed as dist
 except ImportError as err:
     TORCH_ERROR = err
-
-from .helpers import current_overseer
-from .phase import StopProgram
-from .smuggle import SmuggleWriter
 
 
 class FakeInMemoryDataset:
