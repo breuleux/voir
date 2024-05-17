@@ -41,7 +41,7 @@ def file_push(fp=sys.stdout):
 
 def sumggle_push():
     fp = SmuggleWriter(sys.stdout)
-    return stdout_push(fp)
+    return file_push(fp)
 
 
 def give_push():
@@ -145,6 +145,8 @@ class DataloaderWrapper:
         return len(loader)
 
     def __iter__(self):
+        self.log_progress()
+    
         # This takes much more time than expected good thing to keep track of it
         start = -time.time()
         iterator = iter(self.loader)
@@ -169,12 +171,11 @@ class DataloaderWrapper:
             self.events.append((start, end, bs))
 
             # check for early stopping to avoid doing the full epoch
+            self.log_progress()
             if self.is_done():
                 break
 
             start = end
-            self.log_progress()
-
             overhead_end = time.time()
             self.overhead.append(overhead_start + overhead_end)
 
@@ -261,7 +262,7 @@ class DataloaderWrapper:
     def log_progress(self):
         if self.early_stop is not None:
             progress = self.progress()
-            self.message(progress=[progress, self.early_stop])
+            self.message(progress=(progress, self.early_stop), task="early_stop")
 
     def message(self, **kwargs):
         if self.rank is None or self.rank == 0:
