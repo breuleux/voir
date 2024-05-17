@@ -111,7 +111,14 @@ class DataloaderWrapper:
         return cls(*args, push=give_push(), **kwargs)
 
     def __init__(
-        self, loader, event_fn, rank=0, push=file_push(), device=None, earlystop=None, raise_stop_program=False
+        self,
+        loader,
+        event_fn,
+        rank=0,
+        push=file_push(),
+        device=None,
+        earlystop=None,
+        raise_stop_program=False,
     ):
         self.loader = loader
         self.events = []
@@ -146,7 +153,7 @@ class DataloaderWrapper:
 
     def __iter__(self):
         self.log_progress()
-    
+
         # This takes much more time than expected good thing to keep track of it
         start = -time.time()
         iterator = iter(self.loader)
@@ -269,24 +276,9 @@ class DataloaderWrapper:
             self.message_push(**kwargs)
 
 
-class CPUEvent:
-    def __init__(self, **kwargs):
-        self.start = 0
-
-    def record(self):
-        self.start = time.time()
-
-    def elapsed_time(self, end):
-        return end.start - self.start
-
-    def synchronize(self):
-        pass
-
-
-
 class Wrapper:
     """Helper class to create override function for ptera
-    
+
     Examples
     --------
 
@@ -299,17 +291,14 @@ class Wrapper:
        probe['criterion'].override(wrapper.criterion)
 
     """
+
     def __init__(self, *args, **kwargs):
         self.wrapped = None
         self.args = args
         self.kwargs = kwargs
 
     def loader(self, loader):
-        self.wrapped = DataloaderWrapper.with_give(
-            loader, 
-            *self.args,
-            **self.kwargs
-        )
+        self.wrapped = DataloaderWrapper.with_give(loader, *self.args, **self.kwargs)
         return self.wrapped
 
     def criterion(self, criterion):
@@ -317,12 +306,5 @@ class Wrapper:
             loss = criterion(*args)
             self.wrapped.add_loss(loss)
             return loss
+
         return wrapped
-
-
-def test_():
-    loader = DataloaderWrapper([([1, 2], 3) for i in range(10)], CPUEvent, 50)
-
-    for e in range(200):
-        for i in loader:
-            pass
