@@ -4,7 +4,6 @@ import time
 
 import torch
 import torch.distributed as dist
-from giving import give
 
 from .helpers import current_overseer
 from .phase import StopProgram
@@ -149,7 +148,7 @@ class DataloaderWrapper:
         return getattr(self.loader, item)
 
     def __len__(self):
-        return len(loader)
+        return len(self.loader)
 
     def __iter__(self):
         self.log_progress()
@@ -194,7 +193,7 @@ class DataloaderWrapper:
             if len(elem) == 2:
                 return len(elem[0])
             return len(elem)
-        except:
+        except ValueError:
             return 0
 
     def progress(self):
