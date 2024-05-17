@@ -145,7 +145,7 @@ class DataloaderWrapper:
         self.message_push = push
         self.raise_stop_program = raise_stop_program
 
-        if dist.is_initialized():
+        if not TORCH_ERROR and dist.is_initialized():
             self.rank = rank
             assert (
                 self.device is not None
