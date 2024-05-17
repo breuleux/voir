@@ -111,7 +111,7 @@ class DataloaderWrapper:
         return cls(*args, push=give_push(), **kwargs)
 
     def __init__(
-        self, loader, event_fn, rank=0, push=file_push(), device=None, earlystop=None
+        self, loader, event_fn, rank=0, push=file_push(), device=None, earlystop=None, raise_stop_program=False
     ):
         self.loader = loader
         self.events = []
@@ -130,6 +130,7 @@ class DataloaderWrapper:
         self.unit = 1000  # timer is ms
         self.profile_instrumentation = False
         self.message_push = push
+        self.raise_stop_program = raise_stop_program
 
         if dist.is_initialized():
             self.rank = rank
@@ -197,7 +198,9 @@ class DataloaderWrapper:
     def earlystop(self, exception=StopProgram):
         if self.is_done():
             self._push()
-            raise exception()
+
+            if self.raise_stop_program:
+                raise exception()
 
     def extra_work(self):
         pass
@@ -277,6 +280,43 @@ class CPUEvent:
 
     def synchronize(self):
         pass
+
+
+
+class Wrapper:
+    """Helper class to create override function for ptera
+    
+    Examples
+    --------
+
+    .. code-block::
+
+       probe = ov.probe("//dataloader() as loader", overridable=True)
+       probe['loader'].override(wrapper.loader)
+
+       probe = ov.probe("//train_epoch > criterion", overridable=True)
+       probe['criterion'].override(wrapper.criterion)
+
+    """
+    def __init__(self, *args, **kwargs):
+        self.wrapped = None
+        self.args = args
+        self.kwargs = kwargs
+
+    def loader(self, loader):
+        self.wrapped = DataloaderWrapper.with_give(
+            loader, 
+            *self.args,
+            **self.kwargs
+        )
+        return self.wrapped
+
+    def criterion(self, criterion):
+        def wrapped(*args):
+            loss = criterion(*args)
+            self.wrapped.add_loss(loss)
+            return loss
+        return wrapped
 
 
 def test_():
