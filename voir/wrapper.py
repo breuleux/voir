@@ -2,8 +2,12 @@ import json
 import sys
 import time
 
-import torch
-import torch.distributed as dist
+TORCH_ERROR = None
+try:
+    import torch
+    import torch.distributed as dist
+except ImportError as err:
+    TORCH_ERROR = err
 
 from .helpers import current_overseer
 from .phase import StopProgram
@@ -23,6 +27,9 @@ class FakeInMemoryDataset:
 
 class FakeImageClassification(FakeInMemoryDataset):
     def __init__(self, shape, batch_size, batch_count):
+        if TORCH_ERROR:
+            raise TORCH_ERROR
+
         def producer(i):
             return (torch.randn(shape), i % 1000)
 
@@ -212,6 +219,14 @@ class DataloaderWrapper:
     def extra_work(self):
         pass
 
+    def batch_size(self, bs):
+        # multi GPU, batch size count
+        if not TORCH_ERROR and dist.is_initialized():
+            bs = torch.tensor([bs], dtype=torch.int64, device=self.device)
+            dist.reduce(bs, dst=0)
+            return bs.item()
+        return bs
+
     def _push(self):
         """Push all the accumulated metrics"""
         event = self.event_fn()
@@ -224,15 +239,10 @@ class DataloaderWrapper:
         # Push synchronize to have the final compute times
         for start, end, bs in self.events:
             end.synchronize()
+
             elapsed = start.elapsed_time(end) / self.unit
+            rate = self.batch_size(bs) / elapsed
 
-            # multi GPU, batch size count
-            if dist.is_initialized():
-                bs = torch.tensor([bs], dtype=torch.int64, device=self.device)
-                dist.reduce(bs, dst=0)
-                bs = bs.item()
-
-            rate = bs / elapsed
             self.log_rate(rate)
 
         for loss in self.losses:
