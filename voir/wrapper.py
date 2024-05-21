@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import time
 
@@ -53,6 +54,12 @@ def sumggle_push():
 def give_push():
     ov = current_overseer.get()
     return ov.give
+
+
+def earlystop_count():
+    return int(os.getenv("VOIR_EARLYSTOP_COUNT", 60)) + int(
+        os.getenv("VOIR_EARLYSTOP_SKIP", 10)
+    )
 
 
 class DataloaderWrapper:
@@ -123,8 +130,9 @@ class DataloaderWrapper:
         rank=0,
         push=file_push(),
         device=None,
-        earlystop=None,
+        earlystop=earlystop_count(),
         raise_stop_program=False,
+        batch_size_fn=None,
     ):
         self.loader = loader
         self.events = []
@@ -144,6 +152,8 @@ class DataloaderWrapper:
         self.profile_instrumentation = False
         self.message_push = push
         self.raise_stop_program = raise_stop_program
+        self.break_count = 0
+        self.batch_size_fn = batch_size_fn
 
         if not TORCH_ERROR and dist.is_initialized():
             self.rank = rank
@@ -185,7 +195,8 @@ class DataloaderWrapper:
 
             # check for early stopping to avoid doing the full epoch
             self.log_progress()
-            if self.is_done():
+            if self.is_done() and self.break_count == 0:
+                self.break_count += 1
                 break
 
             start = end
@@ -196,6 +207,9 @@ class DataloaderWrapper:
         self.earlystop()
 
     def deduce_batch_size(self, elem):
+        if self.batch_size_fn:
+            return self.batch_size_fn(elem)
+
         try:
             if len(elem) == 2:
                 return len(elem[0])
@@ -301,19 +315,46 @@ class Wrapper:
 
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, backward_callback=None, step_callback=None, **kwargs):
         self.wrapped = None
         self.args = args
         self.kwargs = kwargs
+        self.backward_callback = backward_callback
+        self.optimizer_step_callback = step_callback
 
     def loader(self, loader):
+        """Wrap a dataloader or an iterable which enable accurate measuring of time spent in the loop's body"""
         self.wrapped = DataloaderWrapper.with_give(loader, *self.args, **self.kwargs)
         return self.wrapped
 
     def criterion(self, criterion):
+        """Wrap a loss value to  log and enable a .backward callback"""
+
         def wrapped(*args):
             loss = criterion(*args)
+
+            if self.backward_callback:
+                original = loss.backward
+
+                def new_backward(*args, **kwargs):
+                    original(*args, **kwargs)
+                    self.backward_callback()
+
+                loss.backward = new_backward
+
             self.wrapped.add_loss(loss)
             return loss
 
         return wrapped
+
+    def optimizer(self, optimizer):
+        """Wrap an optimizer to enable a .step callback"""
+        if self.optimizer_step_callback:
+            original = optimizer.step
+
+            def new_step(*args, **kwargs):
+                original(*args, **kwargs)
+                self.optimizer_step_callback()
+
+            optimizer.step = new_step
+        return optimizer
