@@ -315,16 +315,21 @@ class Wrapper:
 
     """
 
-    def __init__(self, *args, backward_callback=None, step_callback=None, **kwargs):
+    def __init__(self, *args, backward_callback=None, step_callback=None, stdout=False, **kwargs):
         self.wrapped = None
         self.args = args
         self.kwargs = kwargs
         self.backward_callback = backward_callback
         self.optimizer_step_callback = step_callback
+        self.stdout = stdout
 
     def loader(self, loader):
         """Wrap a dataloader or an iterable which enable accurate measuring of time spent in the loop's body"""
-        self.wrapped = DataloaderWrapper.with_give(loader, *self.args, **self.kwargs)
+        ctor = DataloaderWrapper.with_give
+        if self.stdout:
+            ctor = DataloaderWrapper.with_sumggler
+
+        self.wrapped = ctor(loader, *self.args, **self.kwargs)
         return self.wrapped
 
     def criterion(self, criterion):
