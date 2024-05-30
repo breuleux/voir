@@ -72,6 +72,9 @@ class DataloaderWrapper:
     is outside of the scope of performance measure, so no matter how long voir takes to process
     the events it will not impact the measures.
 
+    The wrapper also works in multi-gpu, multi-node setups and computes the real batch-size
+    by reducing the batch size on all processes. Only rank 0 logs data.
+
     Notes
     -----
     The event progress is the only one that is feed synchronously so
@@ -315,7 +318,9 @@ class Wrapper:
 
     """
 
-    def __init__(self, *args, backward_callback=None, step_callback=None, stdout=False, **kwargs):
+    def __init__(
+        self, *args, backward_callback=None, step_callback=None, stdout=False, **kwargs
+    ):
         self.wrapped = None
         self.args = args
         self.kwargs = kwargs
