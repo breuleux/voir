@@ -34,7 +34,7 @@ NVSMI_POWER_DRAW = 141
 def fix_num(n):
     try:
         return float(n)
-    except:
+    except ValueError:
         return -1
 
 
