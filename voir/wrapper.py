@@ -15,28 +15,6 @@ except ImportError as err:
     TORCH_ERROR = err
 
 
-class FakeInMemoryDataset:
-    def __init__(self, producer, batch_size, batch_count):
-        self.data = [producer(i) for i in range(batch_size * batch_count)]
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, item):
-        return self.data[item]
-
-
-class FakeImageClassification(FakeInMemoryDataset):
-    def __init__(self, shape, batch_size, batch_count):
-        if TORCH_ERROR:
-            raise TORCH_ERROR
-
-        def producer(i):
-            return (torch.randn(shape), i % 1000)
-
-        super().__init__(producer, batch_size, batch_count)
-
-
 def file_push(fp=sys.stdout):
     def message(**kwargs):
         kwargs.setdefault("task", "train")
