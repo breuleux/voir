@@ -52,10 +52,13 @@ def process_monitor(pid, recursive=True):
         acc = defaultdict(float)
 
         with process.oneshot():
-            cpu_num = process.cpu_num()
-            retrieve_process_info(process, acc)
-            if recursive:
-                _recursive(process, acc)
+            try:
+                cpu_num = process.cpu_num()
+                retrieve_process_info(process, acc)
+                if recursive:
+                    _recursive(process, acc)
+            except psutil.AccessDenied:
+                pass
 
         return {
             "pid": pid,
