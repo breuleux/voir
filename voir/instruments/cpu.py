@@ -20,27 +20,27 @@ def cpu_monitor():
 
 
 def retrieve_process_info(process, acc):
-    io = process.io_counters()
-    acc["read_bytes"] += io.read_bytes
-    acc["write_bytes"] += io.write_bytes
-    acc["read_chars"] += io.read_chars
-    acc["write_chars"] += io.write_chars
-
-    mem = process.memory_info()
-    acc["mem_used"] += mem.rss
-
-    cpu = process.cpu_percent(interval=1)
-    acc["cpu_percent"] += cpu
-    acc["children"] += 1
-
+    try:
+        io = process.io_counters()
+        acc["read_bytes"] += io.read_bytes
+        acc["write_bytes"] += io.write_bytes
+        acc["read_chars"] += io.read_chars
+        acc["write_chars"] += io.write_chars
+    
+        mem = process.memory_info()
+        acc["mem_used"] += mem.rss
+    
+        cpu = process.cpu_percent(interval=1)
+        acc["cpu_percent"] += cpu
+        acc["children"] += 1
+    except psutil.AccessDenied:
+        pass
+    except psutil.NoSuchProcess:
+        pass
 
 def _recursive(process, acc):
     for child in process.children(recursive=True):
-        try:
-            retrieve_process_info(child, acc)
-        except psutil.AccessDenied:
-            pass
-
+        retrieve_process_info(child, acc)
 
 def process_monitor(pid, recursive=True):
     process = psutil.Process(pid)
@@ -52,13 +52,11 @@ def process_monitor(pid, recursive=True):
         acc = defaultdict(float)
 
         with process.oneshot():
-            try:
-                cpu_num = process.cpu_num()
-                retrieve_process_info(process, acc)
-                if recursive:
-                    _recursive(process, acc)
-            except psutil.AccessDenied:
-                pass
+            cpu_num = process.cpu_num()
+            retrieve_process_info(process, acc)
+            if recursive:
+                _recursive(process, acc)
+ 
 
         return {
             "pid": pid,
