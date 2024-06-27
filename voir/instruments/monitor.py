@@ -11,7 +11,7 @@ from .utils import monitor as generic_monitor
 
 
 def monitor(ov, poll_interval=10, worker_init=None, **monitors):
-    """Monitor CPU utilization."""
+    """Monitor metrics given by monitors"""
 
     yield ov.phases.load_script
 
