@@ -62,6 +62,8 @@ def make_gpu_info(handles, selection):
     gpu_infos = {}
 
     for gid, handle in handles.items():
+        # workaround for bug [GS-185]
+        handle = pyhlml.hlmlDeviceGetHandleByIndex(gid)
         uuid = tostr(safecall(pyhlml.hlmlDeviceGetUUID, handle))
 
         is_selected = (selection is None) or (
