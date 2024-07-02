@@ -133,7 +133,7 @@ class DeviceSMI:
         return os.environ.get("HABANA_VISIBLE_MODULES", None)
 
     def get_gpus_info(self, selection=None):
-        return make_gpu_info(self.handles, selection)
+        return make_gpu_infos(self.handles, selection)
 
     def close(self):
         pass
