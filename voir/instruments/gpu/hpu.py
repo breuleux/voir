@@ -65,8 +65,10 @@ def make_gpu_infos(handles, selection):
         try:
             if info := make_gpu_info(gid, handle, selection):
                 gpu_infos[gid] = info
-        except:
+        except pyhlml.HLMLError:
             traceback.print_exc()
+
+    return gpu_infos
 
 
 def make_gpu_info(gid, handle, selection):
@@ -99,7 +101,6 @@ def make_gpu_info(gid, handle, selection):
         "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "HABANA_VISIBLE_MODULES",
     }
-
 
 
 class DeviceSMI:

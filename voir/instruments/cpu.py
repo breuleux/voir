@@ -26,10 +26,10 @@ def retrieve_process_info(process, acc):
         acc["write_bytes"] += io.write_bytes
         acc["read_chars"] += io.read_chars
         acc["write_chars"] += io.write_chars
-    
+
         mem = process.memory_info()
         acc["mem_used"] += mem.rss
-    
+
         cpu = process.cpu_percent(interval=1)
         acc["cpu_percent"] += cpu
         acc["children"] += 1
@@ -38,9 +38,11 @@ def retrieve_process_info(process, acc):
     except psutil.NoSuchProcess:
         pass
 
+
 def _recursive(process, acc):
     for child in process.children(recursive=True):
         retrieve_process_info(child, acc)
+
 
 def process_monitor(pid, recursive=True):
     process = psutil.Process(pid)
@@ -56,7 +58,6 @@ def process_monitor(pid, recursive=True):
             retrieve_process_info(process, acc)
             if recursive:
                 _recursive(process, acc)
- 
 
         return {
             "pid": pid,
