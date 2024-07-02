@@ -68,6 +68,7 @@ def make_gpu_infos(handles, selection):
         except:
             traceback.print_exc()
 
+    return gpu_infos
 
 def make_gpu_info(gid, handle, selection):
     uuid = tostr(safecall(pyhlml.hlmlDeviceGetUUID, handle))
