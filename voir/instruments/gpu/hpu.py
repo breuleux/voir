@@ -1,4 +1,5 @@
 import os
+import traceback
 
 from .common import NotAvailable
 
@@ -32,10 +33,9 @@ NVSMI_POWER_DRAW = 141
 
 
 def fix_num(n):
-    try:
-        return float(n)
-    except ValueError:
-        return -1
+    if n == "N/A":
+        n = -1
+    return n
 
 
 def tostr(data):
@@ -58,43 +58,48 @@ def safecall(call, *args):
         return handle_error(err)
 
 
-def make_gpu_info(handles, selection):
+def make_gpu_infos(handles, selection):
     gpu_infos = {}
 
     for gid, handle in handles.items():
-        # workaround for bug [GS-185]
-        handle = pyhlml.hlmlDeviceGetHandleByIndex(gid)
-        uuid = tostr(safecall(pyhlml.hlmlDeviceGetUUID, handle))
+        try:
+            if info := make_gpu_info(gid, handle, selection):
+                gpu_infos[gid] = info
+        except:
+            traceback.print_exc()
 
-        is_selected = (selection is None) or (
-            selection and (str(gid) in selection or uuid in selection)
-        )
-        if not is_selected:
-            continue
 
-        memInfo = pyhlml.hlmlDeviceGetMemoryInfo(handle)
-        util = pyhlml.hlmlDeviceGetUtilizationRates(handle)
+def make_gpu_info(gid, handle, selection):
+    uuid = tostr(safecall(pyhlml.hlmlDeviceGetUUID, handle))
 
-        gpu_infos[gid] = {
-            "minor_number": tostr(safecall(pyhlml.hlmlDeviceGetMinorNumber, handle)),
-            "device": gid,
-            "product": tostr(safecall(pyhlml.hlmlDeviceGetName, handle)),
-            "memory": {
-                "used": memInfo.used / 1024 / 1024,
-                "total": memInfo.total / 1024 / 1024,
-            },
-            "utilization": {
-                "compute": util / 100.0,
-                "memory": memInfo.used / memInfo.total,
-            },
-            "temperature": fix_num(
-                safecall(pyhlml.hlmlDeviceGetTemperature, handle, NVML_TEMPERATURE_GPU)
-            ),
-            "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
-            "selection_variable": "HABANA_VISIBLE_MODULES",
-        }
+    is_selected = (selection is None) or (
+        selection and (str(gid) in selection or uuid in selection)
+    )
+    if not is_selected:
+        return {}
 
-    return gpu_infos
+    memInfo = pyhlml.hlmlDeviceGetMemoryInfo(handle)
+    util = pyhlml.hlmlDeviceGetUtilizationRates(handle)
+
+    return {
+        "minor_number": tostr(safecall(pyhlml.hlmlDeviceGetMinorNumber, handle)),
+        "device": gid,
+        "product": tostr(safecall(pyhlml.hlmlDeviceGetName, handle)),
+        "memory": {
+            "used": memInfo.used / 1024 / 1024,
+            "total": memInfo.total / 1024 / 1024,
+        },
+        "utilization": {
+            "compute": util / 100.0,
+            "memory": memInfo.used / memInfo.total,
+        },
+        "temperature": fix_num(
+            safecall(pyhlml.hlmlDeviceGetTemperature, handle, NVML_TEMPERATURE_GPU)
+        ),
+        "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
+        "selection_variable": "HABANA_VISIBLE_MODULES",
+    }
+
 
 
 class DeviceSMI:
