@@ -33,9 +33,10 @@ NVSMI_POWER_DRAW = 141
 
 
 def fix_num(n):
-    if n == "N/A":
-        n = -1
-    return n
+    try:
+        return float(n)
+    except ValueError:
+        return -1
 
 
 def tostr(data):
