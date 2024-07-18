@@ -1,47 +1,91 @@
 import os
+import traceback
 
 from .common import NotAvailable
 
 IMPORT_ERROR = None
 try:
-    from pynvml import nvmlInit
+    import pynvml
     from pynvml.nvml import (
         NVMLError_DriverNotLoaded,
         NVMLError_LibraryNotFound,
     )
-    from pynvml.smi import nvidia_smi
 except ImportError as err:
     IMPORT_ERROR = err
 
 
 def fix_num(n):
-    if n == "N/A":
-        n = None
-    return n
+    try:
+        return float(n)
+    except ValueError:
+        return -1
 
 
-def parse_gpu(gpu, gid):
-    mem = gpu["fb_memory_usage"]
-    used = fix_num(mem["used"])
-    total = fix_num(mem["total"])
-    compute = fix_num(gpu["utilization"]["gpu_util"])
-    if compute:
-        compute /= 100
+def tostr(data):
+    if isinstance(data, bytes):
+        return data.decode("utf-8")
+    return str(data)
+
+
+def handle_error(err):
+    if err.value == pynvml.NVML_ERROR_NOT_SUPPORTED:
+        return "N/A"
+    else:
+        return err.__str__()
+
+
+def safecall(call, *args):
+    try:
+        return call(*args)
+    except pynvml.NVMLError as err:
+        return handle_error(err)
+
+
+def make_gpu_info(gid, handle, selection):
+    uuid = tostr(safecall(pynvml.nvmlDeviceGetUUID, handle))
+
+    is_selected = (selection is None) or (
+        selection and (str(gid) in selection or uuid in selection)
+    )
+    if not is_selected:
+        return {}
+
+    memInfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
+    util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+
     return {
+        "minor_number": tostr(safecall(pynvml.nvmlDeviceGetMinorNumber, handle)),
         "device": gid,
-        "product": gpu["product_name"],
+        "product": tostr(safecall(pynvml.nvmlDeviceGetName, handle)),
         "memory": {
-            "used": used,
-            "total": total,
+            "used": memInfo.used / 1024 / 1024,
+            "total": memInfo.total / 1024 / 1024,
         },
         "utilization": {
-            "compute": compute,
-            "memory": total and used and (used / total),
+            "compute": util.gpu,
+            "memory": util.memory,
         },
-        "temperature": fix_num(gpu["temperature"]["gpu_temp"]),
-        "power": fix_num(gpu["power_readings"]["power_draw"]),
+        "temperature": fix_num(
+            safecall(
+                pynvml.nvmlDeviceGetTemperature, handle, pynvml.NVML_TEMPERATURE_GPU
+            )
+        ),
+        "power": fix_num(safecall(pynvml.nvmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "CUDA_VISIBLE_DEVICES",
     }
+
+
+def make_gpu_infos(handles, selection):
+    gpu_infos = {}
+
+    for gid, handle in handles.items():
+        try:
+            if info := make_gpu_info(gid, handle, selection):
+                gpu_infos[gid] = info
+        except Exception:
+            traceback.print_exc()
+
+    return gpu_infos
 
 
 def is_installed():
@@ -50,20 +94,24 @@ def is_installed():
 
 class DeviceSMI:
     def _setup(self):
+        self.handles = {}
+
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
 
         try:
-            nvmlInit()
-            self.nvsmi = nvidia_smi.getInstance()
+            pynvml.nvmlInit()
         except NVMLError_LibraryNotFound as err:
             raise NotAvailable() from err
 
         except NVMLError_DriverNotLoaded as err:
             raise NotAvailable() from err
 
+        deviceCount = pynvml.nvmlDeviceGetCount()
+        for i in range(0, deviceCount):
+            self.handles[i] = pynvml.nvmlDeviceGetHandleByIndex(i)
+
     def __init__(self) -> None:
-        self.nvsmi = None
         self._setup()
 
     @property
@@ -75,41 +123,7 @@ class DeviceSMI:
         return os.environ.get("CUDA_VISIBLE_DEVICES", None)
 
     def get_gpus_info(self, selection=None):
-        to_query = [
-            "uuid",  # Globally unique immutable alphanumeric identifier of the GPU
-            "index",  # Zero based index of the GPU. Can change at each boot.
-            "gpu_name",  # Official Product name
-            "memory.free",
-            "memory.used",
-            "memory.total",
-            "temperature.gpu",
-            "utilization.gpu",
-            "utilization.memory",
-            "power.draw",
-        ]
-        results = self.nvsmi.DeviceQuery(",".join(to_query))
-
-        if not results or "gpu" not in results:
-            return {}
-
-        gpus = results["gpu"]
-        if not isinstance(gpus, list):
-            gpus = [gpus]
-
-        # To support MIG we start using UUID instead of indexes
-        # Nevertheless indexes are useful to quickly select specific GPUs
-        # so we support selecting GPUs using both
-        results = dict()
-        for i, g in enumerate(gpus):
-            i = str(i)
-            uuid = g["uuid"]
-
-            if (selection is None) or (
-                selection and (i in selection or uuid in selection)
-            ):
-                results[uuid] = parse_gpu(g, i)
-
-        return results
+        return make_gpu_infos(self.handles, selection)
 
     def close(self):
         pass
