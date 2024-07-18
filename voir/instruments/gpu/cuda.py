@@ -9,7 +9,7 @@ try:
         NVMLError_DriverNotLoaded,
         NVMLError_LibraryNotFound,
     )
-    from pynvml.smi import nvidia_smi
+    from pynvml_utils import nvidia_smi
 except ImportError as err:
     IMPORT_ERROR = err
 
