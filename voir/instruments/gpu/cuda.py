@@ -62,7 +62,7 @@ def make_gpu_info(gid, handle, selection):
             "total": memInfo.total / 1024 / 1024,
         },
         "utilization": {
-            "compute": util.gpu,
+            "compute": util.gpu / 100,
             "memory": util.memory,
         },
         "temperature": fix_num(
