@@ -45,7 +45,7 @@ jobs:
 
     - name: Test with pytest no coverage
       if: ${{ matrix.python-version != '3.10' }}
-      run: poetry run pytest
+      run: poetry run pytest 
 
     # - name: Verify coverage
     #   if: ${{ matrix.python-version == '3.10' }}
