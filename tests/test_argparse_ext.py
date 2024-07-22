@@ -35,7 +35,7 @@ class Configuration:
     greeting: str = "hello"
     """The greeting to use!"""
 
-    scone: Muffin = field(default_factory=Muffin())
+    scone: Muffin = field(default_factory=Muffin)
 
 
 @pytest.fixture
