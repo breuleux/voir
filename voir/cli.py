@@ -7,7 +7,6 @@ from functools import reduce
 from pathlib import Path
 from runpy import run_path
 
-import pkg_resources
 from ovld import ovld
 
 from .overseer import Overseer
@@ -101,10 +100,15 @@ def collect_contrib_instruments():
 
     This isn't really used, currently.
     """
-    results = []
-    for entry_point in pkg_resources.iter_entry_points("voir.instrument"):
-        results.append(entry_point.load())
-    return results
+    try:
+        import pkg_resources
+
+        results = []
+        for entry_point in pkg_resources.iter_entry_points("voir.instrument"):
+            results.append(entry_point.load())
+        return results
+    except ImportError:
+        return []
 
 
 def main(argv=None):
