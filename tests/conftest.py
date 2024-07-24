@@ -67,7 +67,7 @@ def run_program(file_regression):
         if voirfile is not None:
             env = {**os.environ, "VOIRFILE": voirfile}
         mp = Multiplexer(timeout=None, constructor=constructor)
-        mp.start(argv, info=info, cwd=_progdir, env=env, **kwargs)
+        mp.start(argv, info=info, cwd=_progdir, env=env, buffered=0, **kwargs)
         results = list(mp)
         if reorder:
             results.sort(key=_order_key)
@@ -115,6 +115,9 @@ def output_summary(capsys, capdata):
         dat = capdata()
         txt = output_summary_template.format(out=oe.out, err=oe.err, data=dat)
         txt = re.sub(string=txt, pattern='File "[^"]*", line [0-9]+', repl="<redacted>")
+        # TODO: remove this when min python becomes 3.11 and update regression tests
+        # delete new python 3.11+ error underline
+        txt = re.sub(string=txt, pattern=r'(.*)(\^+)(.*)', repl='', flags=re.MULTILINE)
         return txt
 
     return calc
