@@ -225,9 +225,9 @@ class Overseer(GivenOverseer):
 
         with self.run_phase(self.phases.init):
             tmp_argparser = ExtendedArgumentParser(add_help=False)
-            tmp_argparser.add_argument("--config", action="append", default=[])
+            tmp_argparser.add_argument("--wth-config", action="append", default=[])
             tmp_options, argv = tmp_argparser.parse_known_args(argv)
-            for config in tmp_options.config:
+            for config in tmp_options.wth_config:
                 self.argparser.merge_base_config(yaml.safe_load(open(config, "r")))
 
         with self.run_phase(self.phases.parse_args):
