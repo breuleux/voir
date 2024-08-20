@@ -34,7 +34,7 @@ def rsmi_ret_ok(smi, my_ret, device=None, metric=None, silent=False):
             returnString += " %s: " % (metric)
         returnString += "%s\t" % (err_str.value.decode())
 
-        warnings.warn(returnString, RuntimeWarning)
+        # warnings.warn(returnString, RuntimeWarning)
         return False
     return True
 
