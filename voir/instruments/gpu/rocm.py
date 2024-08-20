@@ -1,4 +1,5 @@
 import os
+import warnings
 
 from .common import NotAvailable
 
@@ -33,7 +34,7 @@ def rsmi_ret_ok(smi, my_ret, device=None, metric=None, silent=False):
             returnString += " %s: " % (metric)
         returnString += "%s\t" % (err_str.value.decode())
 
-        raise RuntimeError(returnString)
+        warnings.warn(returnString, RuntimeWarning)
         return False
     return True
 
