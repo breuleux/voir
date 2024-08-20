@@ -176,7 +176,7 @@ class DeviceSMI:
             raise IMPORT_ERROR
 
         self.smi = initialize_rsmi()
-        self.devices = list_devices()
+        self.devices = list_devices(self.smi)
         
     def get_gpu_info(self, device):
         util = get_gpu_use(self.smi, device)
