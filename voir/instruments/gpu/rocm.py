@@ -1,5 +1,4 @@
 import os
-import warnings
 
 from .common import NotAvailable
 
@@ -150,8 +149,10 @@ def get_power(smi, device):
 
     @param device: DRM device identifier
     """
-    power = rsmi.c_uint32()
-    ret = smi.rsmi_dev_power_ave_get(device, 0, rsmi.byref(power))
+    power = rsmi.c_int64()
+    power_type = rsmi.rsmi_power_type_t()
+
+    ret = smi.rsmi_dev_power_get(device, rsmi.byref(power), rsmi.byref(power_type))
     if rsmi_ret_ok(smi, ret, device, "power"):
         return power.value / 1000000
     return -1
@@ -178,11 +179,11 @@ class DeviceSMI:
 
         self.smi = initialize_rsmi()
         self.devices = list_devices(self.smi)
-        
+
     def get_gpu_info(self, device):
         util = get_gpu_use(self.smi, device)
         used, total = get_mem_info(self.smi, device)
-        temp = get_temp(self.smi, device, "edge")
+        temp = get_temp(self.smi, device, "junction")
         power = get_power(self.smi, device)
 
         return {
