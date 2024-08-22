@@ -12,7 +12,7 @@ giving = "^0.4.2"
 ovld = "^0.3.2"
 omegaconf = "^2.3.0"
 rich = "^13.3.2"
-pynvml = "^11.5.0"
+nvidia-ml-py = "^12.555.43"
 psutil = "^5.9.8"
 
 [tool.poetry.dev-dependencies]
