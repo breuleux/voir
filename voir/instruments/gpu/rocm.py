@@ -60,7 +60,12 @@ def initialize_rsmi():
     """initializes rocmsmi if the amdgpu driver is initialized"""
     # Check if amdgpu is initialized before initializing rsmi
     if is_driver_initialized() is True:
-        smi = rsmi.initRsmiBindings()
+        if hasattr(rsmi, "rocmsmi"):
+            # ROCm < 6.0
+            smi = rsmi.rocmsmi
+        else:
+            # ROCm >= 6.0
+            smi = rsmi.initRsmiBindings()
         ret_init = smi.rsmi_init(0)
         if ret_init != 0:
             raise NotAvailable(
