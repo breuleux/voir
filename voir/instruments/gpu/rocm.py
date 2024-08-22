@@ -13,7 +13,7 @@ except ImportError as err:
     IMPORT_ERROR = err
 
 
-def rsmi_ret_ok(my_ret, device=None, metric=None, silent=False):
+def rsmi_ret_ok(smi, my_ret, device=None, metric=None, silent=False):
     """Returns true if RSMI call status is 0 (success)
 
     If status is not 0, error logs are written to the debug log and false is returned
@@ -24,7 +24,7 @@ def rsmi_ret_ok(my_ret, device=None, metric=None, silent=False):
     """
     if my_ret != rsmi.rsmi_status_t.RSMI_STATUS_SUCCESS:
         err_str = rsmi.c_char_p()
-        rsmi.rocmsmi.rsmi_status_string(my_ret, rsmi.byref(err_str))
+        smi.rsmi_status_string(my_ret, rsmi.byref(err_str))
 
         returnString = ""
         if device is not None:
@@ -33,7 +33,7 @@ def rsmi_ret_ok(my_ret, device=None, metric=None, silent=False):
             returnString += " %s: " % (metric)
         returnString += "%s\t" % (err_str.value.decode())
 
-        raise RuntimeError(returnString)
+        # warnings.warn(returnString, RuntimeWarning)
         return False
     return True
 
@@ -60,41 +60,48 @@ def initialize_rsmi():
     """initializes rocmsmi if the amdgpu driver is initialized"""
     # Check if amdgpu is initialized before initializing rsmi
     if is_driver_initialized() is True:
-        ret_init = rsmi.rocmsmi.rsmi_init(0)
+        if hasattr(rsmi, "rocmsmi"):
+            # ROCm < 6.0
+            smi = rsmi.rocmsmi
+        else:
+            # ROCm >= 6.0
+            smi = rsmi.initRsmiBindings()
+        ret_init = smi.rsmi_init(0)
         if ret_init != 0:
             raise NotAvailable(
                 "ROCm SMI returned %s (the expected value is 0)", ret_init
             )
+        return smi
     else:
         raise NotAvailable("Driver not initialized (amdgpu not found in modules)")
 
 
-def list_devices():
+def list_devices(smi):
     """Returns a list of GPU devices"""
 
     numberOfDevices = rsmi.c_uint32(0)
-    ret = rsmi.rocmsmi.rsmi_num_monitor_devices(rsmi.byref(numberOfDevices))
+    ret = smi.rsmi_num_monitor_devices(rsmi.byref(numberOfDevices))
 
-    if rsmi_ret_ok(ret):
+    if rsmi_ret_ok(smi, ret):
         deviceList = list(range(numberOfDevices.value))
         return deviceList
     else:
         exit(ret)
 
 
-def get_gpu_use(device):
+def get_gpu_use(smi, device):
     """Return the current GPU usage as a percentage"""
     percent = rsmi.c_uint32()
 
-    ret = rsmi.rocmsmi.rsmi_dev_busy_percent_get(device, rsmi.byref(percent))
+    ret = smi.rsmi_dev_busy_percent_get(device, rsmi.byref(percent))
 
-    if rsmi_ret_ok(ret, device, "GPU Utilization "):
+    if rsmi_ret_ok(smi, ret, device, "GPU Utilization "):
         return percent.value
 
     return -1
 
 
-def get_mem_info(device, memType="vram"):
+def get_mem_info(smi, device, memType="vram"):
     """Return the specified memory usage for the specified device
 
     @param device: DRM device identifier
@@ -109,21 +116,21 @@ def get_mem_info(device, memType="vram"):
     memUsed = None
     memTotal = None
 
-    ret = rsmi.rocmsmi.rsmi_dev_memory_usage_get(
+    ret = smi.rsmi_dev_memory_usage_get(
         device, rsmi.memory_type_l.index(memType), rsmi.byref(memoryUse)
     )
-    if rsmi_ret_ok(ret, device, memType):
+    if rsmi_ret_ok(smi, ret, device, memType):
         memUsed = memoryUse.value
 
-    ret = rsmi.rocmsmi.rsmi_dev_memory_total_get(
+    ret = smi.rsmi_dev_memory_total_get(
         device, rsmi.memory_type_l.index(memType), rsmi.byref(memoryTot)
     )
-    if rsmi_ret_ok(ret, device, memType + " total"):
+    if rsmi_ret_ok(smi, ret, device, memType + " total"):
         memTotal = memoryTot.value
     return (memUsed, memTotal)
 
 
-def get_temp(device, sensor):
+def get_temp(smi, device, sensor):
     """Display the current temperature from a given device's sensor
 
     @param device: DRM device identifier
@@ -131,33 +138,35 @@ def get_temp(device, sensor):
     """
     temp = rsmi.c_int64(0)
     metric = rsmi.rsmi_temperature_metric_t.RSMI_TEMP_CURRENT
-    ret = rsmi.rocmsmi.rsmi_dev_temp_metric_get(
+    ret = smi.rsmi_dev_temp_metric_get(
         rsmi.c_uint32(device),
         rsmi.temp_type_lst.index(sensor),
         metric,
         rsmi.byref(temp),
     )
-    if rsmi_ret_ok(ret, device, sensor, True):
+    if rsmi_ret_ok(smi, ret, device, sensor, True):
         return temp.value / 1000
-    return "N/A"
+    return -1
 
 
-def get_power(device):
+def get_power(smi, device):
     """Return the current power level of a given device
 
     @param device: DRM device identifier
     """
-    power = rsmi.c_uint32()
-    ret = rsmi.rocmsmi.rsmi_dev_power_ave_get(device, 0, rsmi.byref(power))
-    if rsmi_ret_ok(ret, device, "power"):
+    power = rsmi.c_int64()
+    power_type = rsmi.rsmi_power_type_t()
+
+    ret = smi.rsmi_dev_power_get(device, rsmi.byref(power), rsmi.byref(power_type))
+    if rsmi_ret_ok(smi, ret, device, "power"):
         return power.value / 1000000
-    return "N/A"
+    return -1
 
 
-def get_product_name(device):
+def get_product_name(smi, device):
     series = rsmi.create_string_buffer(256)
 
-    rsmi.rocmsmi.rsmi_dev_name_get(device, series, 256)
+    smi.rsmi_dev_name_get(device, series, 256)
 
     series = series.value.decode()
 
@@ -173,18 +182,18 @@ class DeviceSMI:
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
 
-        initialize_rsmi()
-        self.devices = list_devices()
+        self.smi = initialize_rsmi()
+        self.devices = list_devices(self.smi)
 
     def get_gpu_info(self, device):
-        util = get_gpu_use(device)
-        used, total = get_mem_info(device)
-        temp = get_temp(device, "edge")
-        power = get_power(device)
+        util = get_gpu_use(self.smi, device)
+        used, total = get_mem_info(self.smi, device)
+        temp = get_temp(self.smi, device, "junction")
+        power = get_power(self.smi, device)
 
         return {
             "device": device,
-            "product": get_product_name(device),
+            "product": get_product_name(self.smi, device),
             "memory": {
                 "used": used // (1024**2),
                 "total": total // (1024**2),
