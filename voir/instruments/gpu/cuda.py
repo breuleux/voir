@@ -3,15 +3,26 @@ import traceback
 
 from .common import NotAvailable
 
+
 IMPORT_ERROR = None
 try:
     import pynvml
-    from pynvml import (
-        NVMLError_DriverNotLoaded,
-        NVMLError_LibraryNotFound,
-    )
+
+    try:
+        #  nvidia-ml-py
+        from pynvml import (
+            NVMLError_DriverNotLoaded,
+            NVMLError_LibraryNotFound,
+        )
+    except ImportError:
+        #  pynvml
+        from pynvml.nvml import (
+            NVMLError_DriverNotLoaded,
+            NVMLError_LibraryNotFound,
+        )
 except ImportError as err:
     IMPORT_ERROR = err
+
 
 
 def fix_num(n):
