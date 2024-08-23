@@ -7,19 +7,10 @@ from .common import NotAvailable
 IMPORT_ERROR = None
 try:
     import pynvml
-
-    try:
-        #  nvidia-ml-py
-        from pynvml import (
-            NVMLError_DriverNotLoaded,
-            NVMLError_LibraryNotFound,
-        )
-    except ImportError:
-        #  pynvml
-        from pynvml.nvml import (
-            NVMLError_DriverNotLoaded,
-            NVMLError_LibraryNotFound,
-        )
+    from pynvml import (
+        NVMLError_DriverNotLoaded,
+        NVMLError_LibraryNotFound,
+    )
 except ImportError as err:
     IMPORT_ERROR = err
 
