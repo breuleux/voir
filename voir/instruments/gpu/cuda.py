@@ -24,7 +24,6 @@ except ImportError as err:
     IMPORT_ERROR = err
 
 
-
 def fix_num(n):
     try:
         return float(n)
