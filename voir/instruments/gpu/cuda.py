@@ -6,7 +6,7 @@ from .common import NotAvailable
 IMPORT_ERROR = None
 try:
     import pynvml
-    from pynvml.nvml import (
+    from pynvml import (
         NVMLError_DriverNotLoaded,
         NVMLError_LibraryNotFound,
     )
