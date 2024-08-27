@@ -87,7 +87,7 @@ def query_gpu_data(gpu):
                 "driver": subprocess.run(
                     shlex.split("modinfo xpu --field version"),
                     capture_output=True,
-                    encoding="utf8"
+                    encoding="utf8",
                 ).stdout.strip(),
             }
         )

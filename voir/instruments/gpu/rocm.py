@@ -210,7 +210,7 @@ class DeviceSMI:
             "driver": subprocess.run(
                 shlex.split("modinfo rocm --field version"),
                 capture_output=True,
-                encoding="utf8"
+                encoding="utf8",
             ).stdout.strip(),
         }
 

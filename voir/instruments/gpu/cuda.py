@@ -74,7 +74,7 @@ def make_gpu_info(gid, handle, selection):
         "driver": subprocess.run(
             shlex.split("modinfo nvidia --field version"),
             capture_output=True,
-            encoding="utf8"
+            encoding="utf8",
         ).stdout.strip(),
     }
 
