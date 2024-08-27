@@ -139,3 +139,7 @@ class DeviceSMI:
 
     def close(self):
         pass
+
+    def system_info(self):
+        print("Not Implemented")
+        return {}
