@@ -1,4 +1,6 @@
+import shlex
 import os
+import subprocess
 
 from .common import NotAvailable
 
@@ -205,6 +207,11 @@ class DeviceSMI:
             "temperature": temp,
             "power": power,
             "selection_variable": "ROCR_VISIBLE_DEVICES",
+            "driver": subprocess.run(
+                shlex.split("modinfo rocm --field version"),
+                capture_output=True,
+                encoding="utf8"
+            ).stdout.strip(),
         }
 
     @property

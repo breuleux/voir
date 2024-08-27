@@ -1,4 +1,6 @@
+import shlex
 import os
+import subprocess
 import traceback
 
 from .common import NotAvailable
@@ -101,6 +103,11 @@ def make_gpu_info(gid, handle, selection):
         ),
         "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "HABANA_VISIBLE_MODULES",
+        "driver": subprocess.run(
+            shlex.split("modinfo gaudi --field version"),
+            capture_output=True,
+            encoding="utf8"
+        ).stdout.strip(),
     }
 
 
