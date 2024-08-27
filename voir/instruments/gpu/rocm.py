@@ -227,5 +227,20 @@ class DeviceSMI:
         pass
 
     def system_info(self):
-        print("Not Implemented")
-        return { }
+        try:
+            # untested
+            version_str = rsmi.c_char_p()
+            ret = self.rsmi_version_str_get(rsmi.RSMI_SW_COMP_DRIVER, rsmi.byref(version_str))
+
+            if rsmi_ret_ok(ret):
+                version = version_str.decode()
+            else:
+                version = "N/A"
+
+            return {
+                "ROCM_KERNEL_DRIVER_VERSION": version
+            }
+        except:
+            import traceback
+            traceback.print_exc()
+            return {}

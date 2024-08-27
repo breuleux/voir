@@ -141,5 +141,18 @@ class DeviceSMI:
         pass
 
     def system_info(self):
-        print("Not Implemented")
-        return {}
+        try:
+            cuda_driver_version = pyhlml.hlmlSystemGetCudaDriverVersion_v2()
+            driver_version = pyhlml.hlmlSystemGetDriverVersion()
+            entries = pyhlml.hlmlSystemGetHicVersion()
+            nvml_version = pyhlml.hlmlSystemGetNVMLVersion()
+            return {
+                "CUDA_DRIVER": cuda_driver_version,
+                "DRIVER_VERSION": driver_version,
+                "HIC_VERSION": entries,
+                "NVML_VERSION": nvml_version,
+            }
+        except:
+            import traceback
+            traceback.print_exc()
+            return {}
