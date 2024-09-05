@@ -1,6 +1,4 @@
 import os
-import shlex
-import subprocess
 import traceback
 
 from .common import NotAvailable
@@ -71,11 +69,7 @@ def make_gpu_info(gid, handle, selection):
         ),
         "power": fix_num(safecall(pynvml.nvmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "CUDA_VISIBLE_DEVICES",
-        "driver": subprocess.run(
-            shlex.split("modinfo nvidia --field version"),
-            capture_output=True,
-            encoding="utf8",
-        ).stdout.strip(),
+        "driver": pynvml.nvmlSystemGetDriverVersion(),
     }
 
 

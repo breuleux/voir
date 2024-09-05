@@ -1,5 +1,4 @@
 import os
-import shlex
 import subprocess
 
 from .common import NotAvailable
@@ -84,11 +83,8 @@ def query_gpu_data(gpu):
                 "temperature": parse(temp, float, 0),
                 "power": parse(power, float, 0),
                 "selection_variable": "ONEAPI_DEVICE_SELECTOR",
-                "driver": subprocess.run(
-                    shlex.split("modinfo xpu --field version"),
-                    capture_output=True,
-                    encoding="utf8",
-                ).stdout.strip(),
+                # What would got here?
+                "driver": "",
             }
         )
     return data
