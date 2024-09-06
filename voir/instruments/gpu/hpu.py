@@ -101,6 +101,7 @@ def make_gpu_info(gid, handle, selection):
         ),
         "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "HABANA_VISIBLE_MODULES",
+        "driver": pyhlml.hlmlGetDriverVersion(),
     }
 
 

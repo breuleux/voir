@@ -83,6 +83,8 @@ def query_gpu_data(gpu):
                 "temperature": parse(temp, float, 0),
                 "power": parse(power, float, 0),
                 "selection_variable": "ONEAPI_DEVICE_SELECTOR",
+                # What would got here?
+                "driver": "",
             }
         )
     return data
