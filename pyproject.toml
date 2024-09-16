@@ -12,16 +12,19 @@ giving = "^0.4.2"
 ovld = "^0.3.2"
 omegaconf = "^2.3.0"
 rich = "^13.3.2"
-nvidia-ml-py = "^12.555.43"
 psutil = "^5.9.8"
+nvidia-ml-py = { version = "^12.555.43", optional = true }
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^22.1.0"
 isort = "^5.10.1"
 flake8 = "^4.0.1"
 pytest = "^7.0.1"
 pytest-cov = "^3.0.0"
 pytest-regressions = "^2.4.1"
+
+[tool.poetry.extras]
+cuda = ["nvidia-ml-py"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
