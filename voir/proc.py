@@ -250,6 +250,8 @@ class Multiplexer:
                 if proc not in still_alive:
                     ret = proc.poll()
                     if ret is not None:
+                        for stream in streams:
+                            stream.pipe.close()
                         del self.processes[proc]
                         yield self.constructor(
                             event="end",
