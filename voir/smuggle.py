@@ -109,6 +109,9 @@ class Decoder:
         self.code = ""
         self.coding = False
 
+    def close(self):
+        self.principal.close()
+
     def endcode(self):
         self.coding = False
         if re.match(string=self.code, pattern="\033\\[[0-9:;<=>?]*z"):
@@ -175,6 +178,9 @@ class MultimodalFile:
         self.decoder = decoder
         self.which = which
 
+    def close(self):
+        self.decoder.close()
+    
     def fileno(self):
         return self.name
 
