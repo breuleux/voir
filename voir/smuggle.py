@@ -180,7 +180,7 @@ class MultimodalFile:
 
     def close(self):
         self.decoder.close()
-    
+
     def fileno(self):
         return self.name
 
