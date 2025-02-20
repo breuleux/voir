@@ -69,6 +69,7 @@ def make_gpu_info(gid, handle, selection):
         ),
         "power": fix_num(safecall(pynvml.nvmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "CUDA_VISIBLE_DEVICES",
+        "driver": pynvml.nvmlSystemGetDriverVersion(),
     }
 
 

@@ -205,6 +205,7 @@ class DeviceSMI:
             "temperature": temp,
             "power": power,
             "selection_variable": "ROCR_VISIBLE_DEVICES",
+            "driver": rsmi.smi_get_kernel_version(),
         }
 
     @property
