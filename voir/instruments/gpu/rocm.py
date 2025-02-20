@@ -205,7 +205,6 @@ class DeviceSMI:
             "temperature": temp,
             "power": power,
             "selection_variable": "ROCR_VISIBLE_DEVICES",
-            "driver": rsmi.smi_get_kernel_version(),
         }
 
     @property
@@ -231,17 +230,18 @@ class DeviceSMI:
         try:
             # untested
             version_str = rsmi.c_char_p()
-            ret = self.rsmi_version_str_get(rsmi.RSMI_SW_COMP_DRIVER, rsmi.byref(version_str))
+            ret = self.rsmi_version_str_get(
+                rsmi.RSMI_SW_COMP_DRIVER, rsmi.byref(version_str)
+            )
 
             if rsmi_ret_ok(ret):
                 version = version_str.decode()
             else:
                 version = "N/A"
 
-            return {
-                "ROCM_KERNEL_DRIVER_VERSION": version
-            }
-        except:
+            return {"ROCM_KERNEL_DRIVER_VERSION": version}
+        except Exception:
             import traceback
+
             traceback.print_exc()
             return {}

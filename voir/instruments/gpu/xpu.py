@@ -83,8 +83,6 @@ def query_gpu_data(gpu):
                 "temperature": parse(temp, float, 0),
                 "power": parse(power, float, 0),
                 "selection_variable": "ONEAPI_DEVICE_SELECTOR",
-                # What would got here?
-                "driver": "",
             }
         )
     return data
@@ -163,8 +161,7 @@ class DeviceSMI:
                     "-d",
                     "-1",  # All Devices
                     "-m",
-                    "8,9,10"
-                    "-n",
+                    "8,9,10" "-n",
                     "1",  # Run once
                 ],
                 text=True,
@@ -179,15 +176,16 @@ class DeviceSMI:
                 (
                     driver_version,
                     gfx_firmware_version,
-                    gfx_data_firmware_version
+                    gfx_data_firmware_version,
                 ) = line.split(",")
 
             return {
                 "DRIVER_VERSION": driver_version,
                 "GFX_FIRMWARE_VERSION": gfx_firmware_version,
-                "GFX_DATA_VERSION": gfx_data_firmware_version
+                "GFX_DATA_VERSION": gfx_data_firmware_version,
             }
-        except:
+        except Exception:
             import traceback
+
             traceback.print_exc()
             return {}

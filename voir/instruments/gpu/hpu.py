@@ -101,7 +101,6 @@ def make_gpu_info(gid, handle, selection):
         ),
         "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "HABANA_VISIBLE_MODULES",
-        "driver": pyhlml.hlmlGetDriverVersion(),
     }
 
 
@@ -153,7 +152,8 @@ class DeviceSMI:
                 "HIC_VERSION": entries,
                 "NVML_VERSION": nvml_version,
             }
-        except:
+        except Exception:
             import traceback
+
             traceback.print_exc()
             return {}
