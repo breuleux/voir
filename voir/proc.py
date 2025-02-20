@@ -230,19 +230,22 @@ class Multiplexer:
         yield from self.buffer
         self.buffer.clear()
 
+        polling_obj = select.poll()
+        to_consult = {}
+        for proc, (streams, _, info) in self.processes.items():
+            for s in streams:
+                polling_obj.register(s.pipe, select.POLLIN)
+                entries = to_consult.setdefault(s.pipe, [])
+                entries.append((s, proc, info))
+                
         while self.processes:
             still_alive = set()
-            to_consult = {}
-            for proc, (streams, _, info) in self.processes.items():
-                for s in streams:
-                    entries = to_consult.setdefault(s.pipe, [])
-                    entries.append((s, proc, info))
+            ready = polling_obj.poll(self.timeout)
+            # ready, _, _ = select.select(to_consult.keys(), [], [], self.timeout)
 
-            ready, _, _ = select.select(to_consult.keys(), [], [], self.timeout)
-
-            for r in ready:
-                while line := r.readline():
-                    for s, proc, info in to_consult[r]:
+            for fd, event in ready:
+                while line := fd.readline():
+                    for s, proc, info in to_consult[fd]:
                         yield from self._process_line(line, s, info)
                         still_alive.add(proc)
 
@@ -251,6 +254,7 @@ class Multiplexer:
                     ret = proc.poll()
                     if ret is not None:
                         for stream in streams:
+                            polling_obj.unregister(stream.pipe)
                             stream.pipe.close()
                         del self.processes[proc]
                         yield self.constructor(
