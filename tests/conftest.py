@@ -115,6 +115,7 @@ def output_summary(capsys, capdata):
         dat = capdata()
         txt = output_summary_template.format(out=oe.out, err=oe.err, data=dat)
         txt = re.sub(string=txt, pattern='File "[^"]*", line [0-9]+', repl="<redacted>")
+        txt = re.sub(string=txt, pattern=r"[ \^]+\n", repl="")
         return txt
 
     return calc
