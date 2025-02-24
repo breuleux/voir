@@ -101,7 +101,7 @@ class Multiplexer:
         self.constructor = constructor or LogEntry
         self.buffer = []
 
-    def start(self, argv, info, env=None, use_stdout=False, **options):
+    def start(self, argv, info, env=None, use_stdout=False, buffered=True, **options):
         """Start a process from the given ``argv``.
 
         Arguments:
@@ -116,19 +116,22 @@ class Multiplexer:
                 set to 1, which is stdout. This will cause ``voir`` to smuggle data into
                 the stdout file descriptor, and the Multiplexer will decode it
                 transparently. See :mod:`voir.smuggle`.
+            buffered: use to disable python output buffering.
+                This is used to make test deterministic as buffering can cut lines are different spots.
 
         Returns:
             The subprocess object.
         """
         env = os.environ if env is None else env
         r, w = None, None
+        buffered = "1" if buffered else "0"
 
         if use_stdout:
             proc = subprocess.Popen(
                 argv,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                env={**env, "DATA_FD": "1", "PYTHONUNBUFFERED": "1"},
+                env={**env, "DATA_FD": "1", "PYTHONUNBUFFERED": buffered},
                 **options,
             )
             os.set_blocking(proc.stdout.fileno(), False)
@@ -151,7 +154,7 @@ class Multiplexer:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 pass_fds=[w],
-                env={**env, "DATA_FD": str(w), "PYTHONUNBUFFERED": "1"},
+                env={**env, "DATA_FD": str(w), "PYTHONUNBUFFERED": buffered},
                 **options,
             )
             readdata = open(r, "r", buffering=1)

@@ -67,7 +67,7 @@ def run_program(file_regression):
         if voirfile is not None:
             env = {**os.environ, "VOIRFILE": voirfile}
         mp = Multiplexer(timeout=None, constructor=constructor)
-        mp.start(argv, info=info, cwd=_progdir, env=env, **kwargs)
+        mp.start(argv, info=info, cwd=_progdir, env=env, buffered=False, **kwargs)
         results = list(mp)
         if reorder:
             results.sort(key=_order_key)
