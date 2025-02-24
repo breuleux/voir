@@ -121,6 +121,7 @@ class Multiplexer:
             The subprocess object.
         """
         env = os.environ if env is None else env
+        r, w = None, None
 
         if use_stdout:
             proc = subprocess.Popen(
@@ -169,6 +170,7 @@ class Multiplexer:
             argv=argv,
             info=info,
             streams=streams,
+            w=w,
         )
 
         self.buffer.append(
@@ -183,9 +185,9 @@ class Multiplexer:
         )
         return proc
 
-    def add_process(self, *, proc, info, argv, streams):
+    def add_process(self, *, proc, info, argv, streams, w):
         """Add a process to those managed by this Multiplexer."""
-        self.processes[proc] = (streams, argv, info)
+        self.processes[proc] = (streams, argv, info, w)
 
     def _process_line(self, line, s, pinfo):
         try:
@@ -230,26 +232,45 @@ class Multiplexer:
         yield from self.buffer
         self.buffer.clear()
 
+        polling_obj = select.poll()
+        to_consult = {}
+        to_pipes = {}
+        for proc, (streams, _, info, _) in self.processes.items():
+            for s in streams:
+                polling_obj.register(s.pipe, select.POLLIN | select.POLLPRI)
+                entries = to_consult.setdefault(s.pipe, [])
+                entries.append((s, proc, info))
+
+                pipes = to_pipes.setdefault(s.pipe.fileno(), [])
+                pipes.append(s.pipe)
+
+        def close_resources(streams, w):
+            for stream in streams:
+                stream.pipe.close()
+
+            if w is not None:
+                try:
+                    os.close(w)
+                except Exception:
+                    pass
+
         while self.processes:
             still_alive = set()
-            to_consult = {}
-            for proc, (streams, _, info) in self.processes.items():
-                for s in streams:
-                    entries = to_consult.setdefault(s.pipe, [])
-                    entries.append((s, proc, info))
+            ready = polling_obj.poll(self.timeout)
 
-            ready, _, _ = select.select(to_consult.keys(), [], [], self.timeout)
+            for fd, event in ready:
+                pipes = to_pipes[fd]
+                for r in pipes:
+                    while line := r.readline():
+                        for s, proc, info in to_consult[r]:
+                            yield from self._process_line(line, s, info)
+                            still_alive.add(proc)
 
-            for r in ready:
-                while line := r.readline():
-                    for s, proc, info in to_consult[r]:
-                        yield from self._process_line(line, s, info)
-                        still_alive.add(proc)
-
-            for proc, (streams, argv, info) in list(self.processes.items()):
+            for proc, (streams, argv, info, w) in list(self.processes.items()):
                 if proc not in still_alive:
                     ret = proc.poll()
                     if ret is not None:
+                        close_resources(streams, w)
                         del self.processes[proc]
                         yield self.constructor(
                             event="end",
@@ -263,3 +284,5 @@ class Multiplexer:
 
             if not self.blocking:  # pragma: no cover
                 yield None
+
+        del polling_obj
