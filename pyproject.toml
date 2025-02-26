@@ -1,6 +1,6 @@
 [project]
 name = "voir"
-version = "0.2.19"
+version = "0.2.20"
 description = "Instrument, extend and visualize your programs"
 readme = "README.md"
 requires-python = ">=3.8"
