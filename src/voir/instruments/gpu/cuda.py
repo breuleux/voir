@@ -69,7 +69,6 @@ def make_gpu_info(gid, handle, selection):
         ),
         "power": fix_num(safecall(pynvml.nvmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "CUDA_VISIBLE_DEVICES",
-        "driver": pynvml.nvmlSystemGetDriverVersion(),
     }
 
 
@@ -122,6 +121,18 @@ class DeviceSMI:
 
     def get_gpus_info(self, selection=None):
         return make_gpu_infos(self.handles, selection)
+
+    def system_info(self):
+        cuda_driver_version = pynvml.nvmlSystemGetCudaDriverVersion_v2()
+        driver_version = pynvml.nvmlSystemGetDriverVersion()
+        entries = pynvml.nvmlSystemGetHicVersion()
+        nvml_version = pynvml.nvmlSystemGetNVMLVersion()
+        return {
+            "CUDA_DRIVER": cuda_driver_version,
+            "DRIVER_VERSION": driver_version,
+            "HIC_VERSION": entries,
+            "NVML_VERSION": nvml_version,
+        }
 
     def close(self):
         pass

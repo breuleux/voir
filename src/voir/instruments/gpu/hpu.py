@@ -101,7 +101,6 @@ def make_gpu_info(gid, handle, selection):
         ),
         "power": fix_num(safecall(pyhlml.hlmlDeviceGetPowerUsage, handle)) / 1000.0,
         "selection_variable": "HABANA_VISIBLE_MODULES",
-        "driver": pyhlml.hlmlGetDriverVersion(),
     }
 
 
@@ -140,3 +139,21 @@ class DeviceSMI:
 
     def close(self):
         pass
+
+    def system_info(self):
+        try:
+            cuda_driver_version = pyhlml.hlmlSystemGetCudaDriverVersion_v2()
+            driver_version = pyhlml.hlmlSystemGetDriverVersion()
+            entries = pyhlml.hlmlSystemGetHicVersion()
+            nvml_version = pyhlml.hlmlSystemGetNVMLVersion()
+            return {
+                "CUDA_DRIVER": cuda_driver_version,
+                "DRIVER_VERSION": driver_version,
+                "HIC_VERSION": entries,
+                "NVML_VERSION": nvml_version,
+            }
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
+            return {}

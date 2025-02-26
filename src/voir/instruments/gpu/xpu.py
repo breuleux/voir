@@ -83,8 +83,6 @@ def query_gpu_data(gpu):
                 "temperature": parse(temp, float, 0),
                 "power": parse(power, float, 0),
                 "selection_variable": "ONEAPI_DEVICE_SELECTOR",
-                # What would got here?
-                "driver": "",
             }
         )
     return data
@@ -146,3 +144,49 @@ class DeviceSMI:
 
     def close(self):
         pass
+
+    def system_info(self):
+        try:
+            # untested
+            driver_version = "NA"
+            gfx_firmware_version = "NA"
+            gfx_data_firmware_version = "NA"
+
+            output = subprocess.check_output(
+                [
+                    "xpumcli",
+                    "dump",
+                    "-t",
+                    "0,1",  # All tiles, 1550 have 2 tiles
+                    "-d",
+                    "-1",  # All Devices
+                    "-m",
+                    "8,9,10",
+                    "-n",
+                    "1",  # Run once
+                ],
+                text=True,
+            )
+            for i, line in enumerate(output.split("\n")):
+                if i == 0:
+                    continue
+
+                if len(line) == 0:
+                    continue
+
+                (
+                    driver_version,
+                    gfx_firmware_version,
+                    gfx_data_firmware_version,
+                ) = line.split(",")
+
+            return {
+                "DRIVER_VERSION": driver_version,
+                "GFX_FIRMWARE_VERSION": gfx_firmware_version,
+                "GFX_DATA_VERSION": gfx_data_firmware_version,
+            }
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
+            return {}

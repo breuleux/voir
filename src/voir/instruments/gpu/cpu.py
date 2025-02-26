@@ -16,3 +16,6 @@ class DeviceSMI:
 
     def close(self):
         pass
+
+    def system_info(self):
+        return {}
