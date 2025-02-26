@@ -2,7 +2,6 @@
 
 import glob
 import os
-import time
 import traceback
 
 from .common import NotAvailable

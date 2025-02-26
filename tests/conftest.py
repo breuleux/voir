@@ -67,7 +67,7 @@ def run_program(file_regression):
         if voirfile is not None:
             env = {**os.environ, "VOIRFILE": voirfile}
         mp = Multiplexer(timeout=None, constructor=constructor)
-        mp.start(argv, info=info, cwd=_progdir, env=env, **kwargs)
+        mp.start(argv, info=info, cwd=_progdir, env=env, buffered=False, **kwargs)
         results = list(mp)
         if reorder:
             results.sort(key=_order_key)
@@ -115,6 +115,7 @@ def output_summary(capsys, capdata):
         dat = capdata()
         txt = output_summary_template.format(out=oe.out, err=oe.err, data=dat)
         txt = re.sub(string=txt, pattern='File "[^"]*", line [0-9]+', repl="<redacted>")
+        txt = re.sub(string=txt, pattern=r"[ \^]+\n", repl="")
         return txt
 
     return calc
