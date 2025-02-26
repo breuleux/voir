@@ -161,7 +161,8 @@ class DeviceSMI:
                     "-d",
                     "-1",  # All Devices
                     "-m",
-                    "8,9,10" "-n",
+                    "8,9,10",
+                    "-n",
                     "1",  # Run once
                 ],
                 text=True,
