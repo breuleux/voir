@@ -228,7 +228,6 @@ class DeviceSMI:
 
     def system_info(self):
         try:
-            # untested
             version_str = rsmi.create_string_buffer(256)
             ret = self.smi.rsmi_version_str_get(
                 rsmi.rsmi_sw_component_t.RSMI_SW_COMP_DRIVER, version_str, 256
