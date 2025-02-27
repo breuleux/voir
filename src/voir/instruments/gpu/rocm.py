@@ -228,14 +228,13 @@ class DeviceSMI:
 
     def system_info(self):
         try:
-            # untested
-            version_str = rsmi.c_char_p()
-            ret = self.rsmi_version_str_get(
-                rsmi.RSMI_SW_COMP_DRIVER, rsmi.byref(version_str)
+            version_str = rsmi.create_string_buffer(256)
+            ret = self.smi.rsmi_version_str_get(
+                rsmi.rsmi_sw_component_t.RSMI_SW_COMP_DRIVER, version_str, 256
             )
 
-            if rsmi_ret_ok(ret):
-                version = version_str.decode()
+            if rsmi_ret_ok(self.smi, ret):
+                version = version_str.value.decode()
             else:
                 version = "N/A"
 
