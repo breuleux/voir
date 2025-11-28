@@ -47,17 +47,29 @@ def make_gpu_info(gid, handle, selection):
     if not is_selected:
         return {}
 
-    memInfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
     util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+
+    try:
+        memInfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
+        memInfo = {
+            "used": memInfo.used / 1024 / 1024,
+            "total": memInfo.total / 1024 / 1024,
+        }
+
+    except pynvml.NVMLError_NotSupported:
+        import psutil
+
+        mem = psutil.virtual_memory()
+        memInfo = {
+            "used": mem.used / 1024 / 1024,
+            "total": mem.total / 1024 / 1024,
+        }
 
     return {
         "minor_number": tostr(safecall(pynvml.nvmlDeviceGetMinorNumber, handle)),
         "device": gid,
         "product": tostr(safecall(pynvml.nvmlDeviceGetName, handle)),
-        "memory": {
-            "used": memInfo.used / 1024 / 1024,
-            "total": memInfo.total / 1024 / 1024,
-        },
+        "memory": memInfo,
         "utilization": {
             "compute": util.gpu / 100,
             "memory": util.memory,
