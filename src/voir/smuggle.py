@@ -88,9 +88,20 @@ class LineAccumulator:
             self.lines.append(self.current)
             self.current = ""
 
-def utf8_decoder():
-    import codecs
-    return codecs.getincrementaldecoder("utf-8")()
+
+def utf8_length(char: chr) -> int:
+    """Return number of bytes a UTF-8 character uses from its first byte."""
+    b = ord(char)
+
+    if b & 0b10000000 == 0:
+        return 1  # ASCII
+    elif b & 0b11100000 == 0b11000000:
+        return 2
+    elif b & 0b11110000 == 0b11100000:
+        return 3
+    elif b & 0b11111000 == 0b11110000:
+        return 4
+    return 1
 
 
 class Decoder:
@@ -165,13 +176,12 @@ class Decoder:
         while (result := self.getline(which)) is None:
             nxt = self.principal.read(1)
             if not nxt:
-                remaining = self.utf8_decoder.decode(b"", final=True)
-                for char in remaining:
-                    self.process_char(char)
                 return None
 
-            for char in self.utf8_decoder.decode(nxt, final=False):
-                self.process_char(char)
+            for i in range(utf8_length(nxt) - 1):
+                nxt += self.principal.read(1)
+
+            self.process_char(nxt.decode("utf8"))
         
         return result
 
