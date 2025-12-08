@@ -123,7 +123,6 @@ class Decoder:
         self.data = LineAccumulator()
         self.code = ""
         self.coding = False
-        self.utf8_decoder = utf8_decoder()
 
     def close(self):
         self.principal.close()
@@ -182,7 +181,7 @@ class Decoder:
                 nxt += self.principal.read(1)
 
             self.process_char(nxt.decode("utf8"))
-        
+
         return result
 
 
