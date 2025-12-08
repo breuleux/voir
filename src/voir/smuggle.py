@@ -88,6 +88,10 @@ class LineAccumulator:
             self.lines.append(self.current)
             self.current = ""
 
+def utf8_decoder():
+    import codecs
+    return codecs.getincrementaldecoder("utf-8")()
+
 
 class Decoder:
     """Decoder for a stream where data has been smuggled.
@@ -108,6 +112,7 @@ class Decoder:
         self.data = LineAccumulator()
         self.code = ""
         self.coding = False
+        self.utf8_decoder = utf8_decoder()
 
     def close(self):
         self.principal.close()
@@ -160,8 +165,14 @@ class Decoder:
         while (result := self.getline(which)) is None:
             nxt = self.principal.read(1)
             if not nxt:
+                remaining = self.utf8_decoder.decode(b"", final=True)
+                for char in remaining:
+                    self.process_char(char)
                 return None
-            self.process_char(nxt.decode("utf8"))
+
+            for char in self.utf8_decoder.decode(nxt, final=False):
+                self.process_char(char)
+        
         return result
 
 
