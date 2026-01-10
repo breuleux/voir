@@ -94,8 +94,8 @@ def make_gpu_info(gid, handle, selection):
             "total": memInfo.total / 1024 / 1024,
         },
         "utilization": {
-            "compute": util / 100.0,
-            "memory": memInfo.used / memInfo.total,
+            "compute": util.aip / 100.0,
+            "memory": util.memory,
         },
         "temperature": fix_num(
             safecall(pyhlml.hlmlDeviceGetTemperature, handle, NVML_TEMPERATURE_GPU)
@@ -124,6 +124,8 @@ class DeviceSMI:
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
 
+        # pyhlml.hlmlInit()
+
         with hlmlinit():
             deviceCount = pyhlml.hlmlDeviceGetCount()
             for i in range(0, deviceCount):
@@ -146,19 +148,18 @@ class DeviceSMI:
             return make_gpu_infos(self.handles, selection)
 
     def close(self):
+        # pyhlml.hlmlShutdown()
         pass
 
     def system_info(self):
         try:
-            cuda_driver_version = pyhlml.hlmlSystemGetCudaDriverVersion_v2()
-            driver_version = pyhlml.hlmlSystemGetDriverVersion()
-            entries = pyhlml.hlmlSystemGetHicVersion()
-            nvml_version = pyhlml.hlmlSystemGetNVMLVersion()
+            driver_version = pyhlml.hlmlGetDriverVersion()
+            nic = pyhlml.hlmlGetNicDriverVersion()
+            hlml_version = pyhlml.hlmlGetHLMLVersion()
             return {
-                "CUDA_DRIVER": cuda_driver_version,
-                "DRIVER_VERSION": driver_version,
-                "HIC_VERSION": entries,
-                "NVML_VERSION": nvml_version,
+                "DRIVER_VERSION": tostr(driver_version),
+                "NIC_VERSION": tostr(nic),
+                "HLML_VERSION": tostr(hlml_version)
             }
         except Exception:
             import traceback
