@@ -24,6 +24,9 @@ voir = "voir.cli:main"
 cuda = [
     "nvidia-ml-py>=12.570.86",
 ]
+tt = [
+    "tt-smi>=5.0",
+]
 
 [dependency-groups]
 dev = [
