@@ -95,22 +95,6 @@ def collect_instruments(voirfiles):
     )
 
 
-def collect_contrib_instruments():
-    """Collect instruments declared as entry points.
-
-    This isn't really used, currently.
-    """
-    try:
-        import pkg_resources
-
-        results = []
-        for entry_point in pkg_resources.iter_entry_points("voir.instrument"):
-            results.append(entry_point.load())
-        return results
-    except ImportError:
-        return []
-
-
 def main(argv=None):
     """Entry point of the voir command line interface."""
     sys.path.insert(0, os.path.abspath(os.curdir))
@@ -122,7 +106,6 @@ def main(argv=None):
         vfs = vfs.split()
 
     instruments = collect_instruments(vfs)
-    instruments.extend(collect_contrib_instruments())
 
     ov = Overseer(instruments=instruments, logfile=int(os.environ.get("DATA_FD", 3)))
     ov(sys.argv[1:] if argv is None else argv)
