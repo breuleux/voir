@@ -104,7 +104,13 @@ def collect_contrib_instruments():
         from importlib.metadata import entry_points
 
         results = []
-        for entry_point in entry_points().select(group="voir.instrument"):
+        eps = entry_points()
+        instrs = (
+            eps.get("voir.instrument", [])
+            if isinstance(eps, dict)
+            else eps.select(group="voir.instrument")
+        )
+        for entry_point in instrs:
             results.append(entry_point.load())
         return results
     except ImportError:

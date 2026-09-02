@@ -4,9 +4,9 @@ All instruments receive an :class:`Overseer` as their first argument.
 """
 
 import importlib
+import importlib.util
 import json
 import os
-import pkgutil
 import sys
 import traceback
 from argparse import REMAINDER, Namespace
@@ -277,7 +277,7 @@ def _resolve_function(options):
             return module_spec, argv, getattr(module, field)
         else:
             module_name = module_spec
-            script = Path(pkgutil.get_loader(module_name).get_filename())
+            script = Path(importlib.util.find_spec(module_name).origin)
             if script.name == "__init__.py":
                 script = script.parent / "__main__.py"
                 module_name = f"{module_name}.__main__"
