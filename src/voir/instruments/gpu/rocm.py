@@ -6,7 +6,9 @@ IMPORT_ERROR = None
 try:
     import sys
 
-    sys.path.append(os.path.join(os.environ.get("ROCM_PATH", "/opt/rocm"), "libexec/rocm_smi/"))
+    sys.path.append(
+        os.path.join(os.environ.get("ROCM_PATH", "/opt/rocm"), "libexec/rocm_smi/")
+    )
     import rsmiBindings as rsmi
 
 except ImportError as err:
