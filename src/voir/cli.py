@@ -42,18 +42,18 @@ def find_voirfiles(script_path):
 
 
 @ovld
-def _to_instruments(self, value: list):  # noqa: F811
+def _to_instruments(self, value: list):
     """Recursively find instruments in a data structure."""
     return reduce(operator.add, map(self, value), [])
 
 
 @ovld
-def _to_instruments(self, value: dict):  # noqa: F811
+def _to_instruments(self, value: dict):
     return reduce(operator.add, map(self, value.values()), [])
 
 
 @ovld
-def _to_instruments(self, value):  # noqa: F811
+def _to_instruments(self, value):
     return [value]
 
 

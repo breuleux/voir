@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-special_fd = int(os.environ.get("DATA_FD", 3))
+special_fd = int(os.environ.get("DATA_FD", "3"))
 
 if __name__ == "__main__":
     print("to stdout")

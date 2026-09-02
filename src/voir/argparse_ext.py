@@ -77,7 +77,7 @@ def contribute(default: meta(is_dataclass), info: Info):
 
 
 @ovld
-def contribute(default: bool, info: Info):  # noqa: F811
+def contribute(default: bool, info: Info):
     hlp = info.help
     pth = f"{info.prefix}{info.name}"
 
@@ -103,7 +103,7 @@ def contribute(default: bool, info: Info):  # noqa: F811
 
 
 @ovld
-def contribute(default: Union[int, float, str], info: Info):  # noqa: F811
+def contribute(default: Union[int, float, str], info: Info):
     info.group.add_argument(
         _dash(f"{info.prefix}{info.name}"),
         type=info.type,

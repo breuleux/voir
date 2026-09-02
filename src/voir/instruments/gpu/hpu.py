@@ -126,7 +126,7 @@ class DeviceSMI:
 
         with hlmlinit():
             deviceCount = pyhlml.hlmlDeviceGetCount()
-            for i in range(0, deviceCount):
+            for i in range(deviceCount):
                 self.handles[i] = pyhlml.hlmlDeviceGetHandleByIndex(i)
 
     def __init__(self) -> None:

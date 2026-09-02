@@ -13,7 +13,7 @@ def _parse_duration(x: Union[int, float]):
 
 
 @ovld
-def _parse_duration(x: str):  # noqa: F811
+def _parse_duration(x: str):
     if x.endswith("s"):
         return (True, float(x[:-1]))
     else:

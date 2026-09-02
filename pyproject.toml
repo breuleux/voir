@@ -44,7 +44,7 @@ packages = ["src/voir"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
-ignore = ["F811", "F722"]
+ignore = ["PYI041", "F811", "F722", "FLY", "S", "SIM", "TRY", "RUF", "B", "UP", "BLE", "FA", "C", "PLW", "PLR"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true

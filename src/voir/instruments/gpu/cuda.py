@@ -117,7 +117,7 @@ class DeviceSMI:
             raise NotAvailable() from err
 
         deviceCount = pynvml.nvmlDeviceGetCount()
-        for i in range(0, deviceCount):
+        for i in range(deviceCount):
             self.handles[i] = pynvml.nvmlDeviceGetHandleByIndex(i)
 
     def __init__(self) -> None:

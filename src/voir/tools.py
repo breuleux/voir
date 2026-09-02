@@ -8,7 +8,7 @@ from ovld import meta, ovld
 
 
 @ovld
-def gated(flag: str):  # noqa: F811
+def gated(flag: str):
     """Decorate an instrument so that it is only activated when a ``--flag`` is given.
 
     .. code-block:: python
@@ -28,12 +28,12 @@ def gated(flag: str):  # noqa: F811
 
 
 @ovld
-def gated(flag: str, help: str):  # noqa: F811
+def gated(flag: str, help: str):
     return partial(gated, flag, help=help)
 
 
 @ovld
-def gated(flag: str, instrument: meta(callable), help: str = None):  # noqa: F811
+def gated(flag: str, instrument: meta(callable), help: str = None):
     dest = flag
 
     def run(ov):
@@ -48,7 +48,7 @@ def gated(flag: str, instrument: meta(callable), help: str = None):  # noqa: F81
 
 
 @ovld
-def parametrized(option: str, type=None, help=None, default=None):  # noqa: F811
+def parametrized(option: str, type=None, help=None, default=None):
     """Decorate an instrument to declare an ``--option``.
 
     .. code-block:: python
@@ -71,7 +71,7 @@ def parametrized(option: str, type=None, help=None, default=None):  # noqa: F811
 
 
 @ovld
-def parametrized(  # noqa: F811
+def parametrized(
     option: str, instrument: meta(callable), type=None, help=None, default=None
 ):
     def run(ov):
