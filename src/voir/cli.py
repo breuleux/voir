@@ -104,7 +104,7 @@ def collect_contrib_instruments():
         from importlib.metadata import entry_points
 
         results = []
-        for entry_point in entry_points(group="voir.instrument"):
+        for entry_point in entry_points().select(group="voir.instrument"):
             results.append(entry_point.load())
         return results
     except ImportError:
