@@ -101,10 +101,10 @@ def collect_contrib_instruments():
     This isn't really used, currently.
     """
     try:
-        import pkg_resources
+        from importlib.metadata import entry_points
 
         results = []
-        for entry_point in pkg_resources.iter_entry_points("voir.instrument"):
+        for entry_point in entry_points(group="voir.instrument"):
             results.append(entry_point.load())
         return results
     except ImportError:
