@@ -1,8 +1,20 @@
 """Utilities for instruments."""
 
 import multiprocessing
+import threading
 import time
 from threading import Thread
+
+# Upper bound on how long stop() waits for an in-flight poll to return
+STOP_TIMEOUT = 30
+
+
+def _join(thread):
+    # Join so the poll is not running native code (e.g. jax memory_stats) when the
+    # interpreter finalizes: on Python < 3.14 the thread is then pthread_exit'ed
+    # while in C++ and the process aborts with "FATAL: exception not rethrown"
+    if thread.is_alive() and thread is not threading.current_thread():
+        thread.join(STOP_TIMEOUT)
 
 
 class Monitor(Thread):
@@ -10,17 +22,21 @@ class Monitor(Thread):
 
     def __init__(self, delay, func):
         super().__init__(daemon=True)
-        self.stopped = False
+        self._stop_event = threading.Event()
         self.delay = delay
         self.func = func
 
+    @property
+    def stopped(self):
+        return self._stop_event.is_set()
+
     def run(self):
-        while not self.stopped:
-            time.sleep(self.delay)
+        while not self._stop_event.wait(self.delay):
             self.func()
 
     def stop(self):
-        self.stopped = True
+        self._stop_event.set()
+        _join(self)
 
 
 def _worker(state, queue, func, delay, init=None):
@@ -59,7 +75,7 @@ class ProcessMonitor:
 class ProcessPusher(Thread):
     def __init__(self, delay, queue, func):
         super().__init__(daemon=True)
-        self.stopped = False
+        self._stop_event = threading.Event()
 
         self.delay = delay
         self.queue = queue
@@ -69,13 +85,17 @@ class ProcessPusher(Thread):
         while not self.queue.empty():
             self.func(self.queue.get())
 
+    @property
+    def stopped(self):
+        return self._stop_event.is_set()
+
     def run(self):
-        while not self.stopped:
-            time.sleep(self.delay)
+        while not self._stop_event.wait(self.delay):
             self.push()
 
     def stop(self):
-        self.stopped = True
+        self._stop_event.set()
+        _join(self)
         self.push()
 
 
