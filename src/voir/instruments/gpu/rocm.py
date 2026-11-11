@@ -1,178 +1,103 @@
+"""AMD GPU backend using the amdsmi python API.
+
+https://rocm.docs.amd.com/projects/amdsmi/en/latest/reference/amdsmi-py-api.html
+"""
+
 import os
 
 from .common import NotAvailable
 
 IMPORT_ERROR = None
 try:
-    import sys
+    try:
+        import amdsmi
+    except ImportError:
+        # amdsmi ships with ROCm but is not always installed in the environment
+        import sys
 
-    sys.path.append(
-        os.path.join(os.environ.get("ROCM_PATH", "/opt/rocm"), "libexec/rocm_smi/")
-    )
-    import rsmiBindings as rsmi
+        sys.path.append(
+            os.path.join(os.environ.get("ROCM_PATH") or "/opt/rocm", "share/amd_smi")
+        )
+        import amdsmi
 
 except ImportError as err:
     IMPORT_ERROR = err
 
 
-def rsmi_ret_ok(smi, my_ret, device=None, metric=None, silent=False):
-    """Returns true if RSMI call status is 0 (success)
-
-    If status is not 0, error logs are written to the debug log and false is returned
-
-    @param device: DRM device identifier
-    @param my_ret: Return of RSMI call (rocm_smi_lib API)
-    @param metric: Parameter of GPU currently being analyzed
-    """
-    if my_ret != rsmi.rsmi_status_t.RSMI_STATUS_SUCCESS:
-        err_str = rsmi.c_char_p()
-        smi.rsmi_status_string(my_ret, rsmi.byref(err_str))
-
-        returnString = ""
-        if device is not None:
-            returnString += "%s GPU[%s]:" % (my_ret, device)
-        if metric is not None:
-            returnString += " %s: " % (metric)
-        returnString += "%s\t" % (err_str.value.decode())
-
-        # warnings.warn(returnString, RuntimeWarning)
-        return False
-    return True
-
-
-def is_driver_initialized():
-    """Returns true if amdgpu is found in the list of initialized modules"""
-    import subprocess
-
-    driverInitialized = ""
+def safecall(call, *args, default=-1):
+    """Call an amdsmi function, returning ``default`` if the metric is unavailable"""
     try:
-        driverInitialized = str(
-            subprocess.check_output(
-                "cat /sys/module/amdgpu/initstate |grep live", shell=True
-            )
-        )
-    except subprocess.CalledProcessError:
-        pass
-    if len(driverInitialized) > 0:
-        return True
-    return False
+        value = call(*args)
+    except amdsmi.AmdSmiException:
+        return default
+
+    if value == "N/A":
+        return default
+    return value
 
 
-def initialize_rsmi():
-    """initializes rocmsmi if the amdgpu driver is initialized"""
-    # Check if amdgpu is initialized before initializing rsmi
-    if is_driver_initialized() is True:
-        if hasattr(rsmi, "rocmsmi"):
-            # ROCm < 6.0
-            smi = rsmi.rocmsmi
-        else:
-            # ROCm >= 6.0
-            smi = rsmi.initRsmiBindings()
-        ret_init = smi.rsmi_init(0)
-        if ret_init != 0:
-            raise NotAvailable(
-                "ROCm SMI returned %s (the expected value is 0)", ret_init
-            )
-        return smi
-    else:
-        raise NotAvailable("Driver not initialized (amdgpu not found in modules)")
-
-
-def list_devices(smi):
-    """Returns a list of GPU devices"""
-
-    numberOfDevices = rsmi.c_uint32(0)
-    ret = smi.rsmi_num_monitor_devices(rsmi.byref(numberOfDevices))
-
-    if rsmi_ret_ok(smi, ret):
-        deviceList = list(range(numberOfDevices.value))
-        return deviceList
-    else:
-        exit(ret)
-
-
-def get_gpu_use(smi, device):
+def get_gpu_use(handle):
     """Return the current GPU usage as a percentage"""
-    percent = rsmi.c_uint32()
+    activity = safecall(amdsmi.amdsmi_get_gpu_activity, handle, default={})
+    value = activity.get("gfx_activity", "N/A")
+    return -1 if value == "N/A" else value
 
-    ret = smi.rsmi_dev_busy_percent_get(device, rsmi.byref(percent))
 
-    if rsmi_ret_ok(smi, ret, device, "GPU Utilization "):
-        return percent.value
+def get_mem_info(handle, memType=None):
+    """Return the (used, total) memory in bytes"""
+    if memType is None:
+        memType = amdsmi.AmdSmiMemoryType.VRAM
 
+    used = safecall(amdsmi.amdsmi_get_gpu_memory_usage, handle, memType)
+    total = safecall(amdsmi.amdsmi_get_gpu_memory_total, handle, memType)
+    return used, total
+
+
+def get_temp(handle):
+    """Return the current temperature in Celsius"""
+    # Instinct GPUs do not expose the EDGE sensor, consumer GPUs might not expose JUNCTION
+    for sensor in (
+        amdsmi.AmdSmiTemperatureType.JUNCTION,
+        amdsmi.AmdSmiTemperatureType.HOTSPOT,
+        amdsmi.AmdSmiTemperatureType.EDGE,
+    ):
+        temp = safecall(
+            amdsmi.amdsmi_get_temp_metric,
+            handle,
+            sensor,
+            amdsmi.AmdSmiTemperatureMetric.CURRENT,
+        )
+        if temp != -1:
+            return temp
     return -1
 
 
-def get_mem_info(smi, device, memType="vram"):
-    """Return the specified memory usage for the specified device
+def get_power(handle):
+    """Return the current power draw in Watts"""
+    info = safecall(amdsmi.amdsmi_get_power_info, handle, default={})
 
-    @param device: DRM device identifier
-    @param type: [vram|vis_vram|gtt] Memory type to return
-    """
-    memType = memType.upper()
-    if memType not in rsmi.memory_type_l:
-        raise RuntimeError("Invalid memory type %s" % (memType))
-
-    memoryUse = rsmi.c_uint64()
-    memoryTot = rsmi.c_uint64()
-    memUsed = None
-    memTotal = None
-
-    ret = smi.rsmi_dev_memory_usage_get(
-        device, rsmi.memory_type_l.index(memType), rsmi.byref(memoryUse)
-    )
-    if rsmi_ret_ok(smi, ret, device, memType):
-        memUsed = memoryUse.value
-
-    ret = smi.rsmi_dev_memory_total_get(
-        device, rsmi.memory_type_l.index(memType), rsmi.byref(memoryTot)
-    )
-    if rsmi_ret_ok(smi, ret, device, memType + " total"):
-        memTotal = memoryTot.value
-    return (memUsed, memTotal)
-
-
-def get_temp(smi, device, sensor):
-    """Display the current temperature from a given device's sensor
-
-    @param device: DRM device identifier
-    @param sensor: Temperature sensor identifier
-    """
-    temp = rsmi.c_int64(0)
-    metric = rsmi.rsmi_temperature_metric_t.RSMI_TEMP_CURRENT
-    ret = smi.rsmi_dev_temp_metric_get(
-        rsmi.c_uint32(device),
-        rsmi.temp_type_lst.index(sensor),
-        metric,
-        rsmi.byref(temp),
-    )
-    if rsmi_ret_ok(smi, ret, device, sensor, True):
-        return temp.value / 1000
+    for key in ("current_socket_power", "average_socket_power", "socket_power"):
+        value = info.get(key, "N/A")
+        if value != "N/A":
+            return value
     return -1
 
 
-def get_power(smi, device):
-    """Return the current power level of a given device
-
-    @param device: DRM device identifier
-    """
-    power = rsmi.c_int64()
-    power_type = rsmi.rsmi_power_type_t()
-
-    ret = smi.rsmi_dev_power_get(device, rsmi.byref(power), rsmi.byref(power_type))
-    if rsmi_ret_ok(smi, ret, device, "power"):
-        return power.value / 1000000
-    return -1
+def get_product_name(handle):
+    info = safecall(amdsmi.amdsmi_get_gpu_asic_info, handle, default={})
+    return info.get("market_name", "N/A")
 
 
-def get_product_name(smi, device):
-    series = rsmi.create_string_buffer(256)
+def get_device_index(handle, default):
+    """Return the HIP index of the device, which is what ROCR_VISIBLE_DEVICES uses"""
+    info = safecall(amdsmi.amdsmi_get_gpu_enumeration_info, handle, default={})
+    hip_id = info.get("hip_id", "N/A")
+    return default if hip_id == "N/A" else hip_id
 
-    smi.rsmi_dev_name_get(device, series, 256)
 
-    series = series.value.decode()
-
-    return series
+def get_device_uuid(handle):
+    info = safecall(amdsmi.amdsmi_get_gpu_enumeration_info, handle, default={})
+    return info.get("hip_uuid", "N/A")
 
 
 def is_installed():
@@ -184,25 +109,40 @@ class DeviceSMI:
         if IMPORT_ERROR is not None:
             raise IMPORT_ERROR
 
-        self.smi = initialize_rsmi()
-        self.devices = list_devices(self.smi)
+        try:
+            amdsmi.amdsmi_init(amdsmi.AmdSmiInitFlags.INIT_AMD_GPUS)
+        except amdsmi.AmdSmiException as err:
+            raise NotAvailable(f"amdsmi failed to initialize: {err}") from err
+
+        self.initialized = True
+
+        handles = amdsmi.amdsmi_get_processor_handles()
+        self.handles = {
+            get_device_index(handle, i): handle for i, handle in enumerate(handles)
+        }
+        self.devices = sorted(self.handles.keys())
+        self.uuids = {
+            device: get_device_uuid(handle) for device, handle in self.handles.items()
+        }
 
     def get_gpu_info(self, device):
-        util = get_gpu_use(self.smi, device)
-        used, total = get_mem_info(self.smi, device)
-        temp = get_temp(self.smi, device, "junction")
-        power = get_power(self.smi, device)
+        handle = self.handles[device]
+
+        util = get_gpu_use(handle)
+        used, total = get_mem_info(handle)
+        temp = get_temp(handle)
+        power = get_power(handle)
 
         return {
             "device": device,
-            "product": get_product_name(self.smi, device),
+            "product": get_product_name(handle),
             "memory": {
                 "used": used // (1024**2),
                 "total": total // (1024**2),
             },
             "utilization": {
                 "compute": float(util) / 100,
-                "memory": used / total,
+                "memory": used / total if total > 0 else -1,
             },
             "temperature": temp,
             "power": power,
@@ -220,29 +160,37 @@ class DeviceSMI:
     def get_gpus_info(self, selection=None):
         gpus = dict()
         for device in self.devices:
-            if (selection is None) or (selection and str(device) in selection):
+            if (selection is None) or (
+                selection
+                and (str(device) in selection or self.uuids[device] in selection)
+            ):
                 gpus[device] = self.get_gpu_info(device)
 
         return gpus
 
     def close(self):
-        pass
+        if self.initialized:
+            self.initialized = False
+            try:
+                amdsmi.amdsmi_shut_down()
+            except amdsmi.AmdSmiException:
+                pass
 
     def system_info(self):
-        try:
-            version_str = rsmi.create_string_buffer(256)
-            ret = self.smi.rsmi_version_str_get(
-                rsmi.rsmi_sw_component_t.RSMI_SW_COMP_DRIVER, version_str, 256
+        info = {}
+
+        if self.devices:
+            driver = safecall(
+                amdsmi.amdsmi_get_gpu_driver_info,
+                self.handles[self.devices[0]],
+                default={},
             )
+            info["ROCM_KERNEL_DRIVER_VERSION"] = driver.get("driver_version", "N/A")
 
-            if rsmi_ret_ok(self.smi, ret):
-                version = version_str.value.decode()
-            else:
-                version = "N/A"
+        try:
+            ok, version = amdsmi.amdsmi_get_rocm_version()
+            info["ROCM_VERSION"] = version if ok else "N/A"
+        except (AttributeError, amdsmi.AmdSmiException):
+            pass
 
-            return {"ROCM_KERNEL_DRIVER_VERSION": version}
-        except Exception:
-            import traceback
-
-            traceback.print_exc()
-            return {}
+        return info
